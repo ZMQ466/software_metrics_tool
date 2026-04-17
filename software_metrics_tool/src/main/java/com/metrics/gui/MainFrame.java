@@ -1,7 +1,21 @@
 package com.metrics.gui;
 
+import com.metrics.core.MetricsManager;
+import com.metrics.design.UCPCalculator;
+import com.metrics.design.UCPResult;
+import com.metrics.model.ClassInfo;
+import com.metrics.model.ProjectMetricsResult;
+import com.metrics.model.UCPInput;
+import com.metrics.modules.CKLkMetricsCalculator;
+import com.metrics.modules.TraditionalMetricsCalculator;
+import com.metrics.parser.EclipseJdtCodeParser;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 自动化度量工具 主界面 (1号同学负责整体GUI框架)
@@ -16,11 +30,22 @@ public class MainFrame extends JFrame {
     private JButton browseButton;
     private JButton analyzeCodeButton;
     private JTextArea codeResultArea;
+    private JCheckBox ckMetricsCheckBox;
+    private JCheckBox lkMetricsCheckBox;
+    private JCheckBox traditionalMetricsCheckBox;
     
     // 设计/需求度量面板组件 (对应 4号 同学的内容)
     private JPanel designMetricsPanel;
     private JButton calculateUcpButton;
     private JTextArea designResultArea;
+    private JTextField simpleUseCasesField;
+    private JTextField averageUseCasesField;
+    private JTextField complexUseCasesField;
+    private JTextField simpleActorsField;
+    private JTextField averageActorsField;
+    private JTextField complexActorsField;
+    private JTextField technicalFactorsField;
+    private JTextField environmentalFactorsField;
 
     public MainFrame() {
         setTitle("软件度量自动化工具 - 团队集成版");
@@ -80,9 +105,12 @@ public class MainFrame extends JFrame {
         
         // 底部可选度量区
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        bottomPanel.add(new JCheckBox("CK度量集", true));
-        bottomPanel.add(new JCheckBox("LK度量集", true));
-        bottomPanel.add(new JCheckBox("代码行/复杂度", true));
+        ckMetricsCheckBox = new JCheckBox("CK度量集", true);
+        lkMetricsCheckBox = new JCheckBox("LK度量集", true);
+        traditionalMetricsCheckBox = new JCheckBox("代码行/复杂度", true);
+        bottomPanel.add(ckMetricsCheckBox);
+        bottomPanel.add(lkMetricsCheckBox);
+        bottomPanel.add(traditionalMetricsCheckBox);
         codeMetricsPanel.add(bottomPanel, BorderLayout.SOUTH);
     }
     
@@ -90,19 +118,39 @@ public class MainFrame extends JFrame {
         designMetricsPanel = new JPanel(new BorderLayout(10, 10));
         designMetricsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        // 模拟 4号同学的 用例点表单输入区
-        JPanel inputPanel = new JPanel(new GridLayout(4, 2, 5, 5));
+        JPanel inputPanel = new JPanel(new GridLayout(9, 2, 5, 5));
         inputPanel.setBorder(BorderFactory.createTitledBorder("用例点度量参数输入"));
         
         inputPanel.add(new JLabel("简单用例数 (Simple Use Cases):"));
-        inputPanel.add(new JTextField("0"));
+        simpleUseCasesField = new JTextField("0");
+        inputPanel.add(simpleUseCasesField);
         inputPanel.add(new JLabel("平均用例数 (Average Use Cases):"));
-        inputPanel.add(new JTextField("0"));
+        averageUseCasesField = new JTextField("0");
+        inputPanel.add(averageUseCasesField);
         inputPanel.add(new JLabel("复杂用例数 (Complex Use Cases):"));
-        inputPanel.add(new JTextField("0"));
+        complexUseCasesField = new JTextField("0");
+        inputPanel.add(complexUseCasesField);
+
+        inputPanel.add(new JLabel("简单参与者数 (Simple Actors):"));
+        simpleActorsField = new JTextField("0");
+        inputPanel.add(simpleActorsField);
+        inputPanel.add(new JLabel("平均参与者数 (Average Actors):"));
+        averageActorsField = new JTextField("0");
+        inputPanel.add(averageActorsField);
+        inputPanel.add(new JLabel("复杂参与者数 (Complex Actors):"));
+        complexActorsField = new JTextField("0");
+        inputPanel.add(complexActorsField);
+
+        inputPanel.add(new JLabel("技术因子(13项,逗号分隔0-5):"));
+        technicalFactorsField = new JTextField("0,0,0,0,0,0,0,0,0,0,0,0,0");
+        inputPanel.add(technicalFactorsField);
+        inputPanel.add(new JLabel("环境因子(8项,逗号分隔0-5):"));
+        environmentalFactorsField = new JTextField("0,0,0,0,0,0,0,0");
+        inputPanel.add(environmentalFactorsField);
         
         calculateUcpButton = new JButton("计算用例点 (UCP)");
         calculateUcpButton.addActionListener(e -> performUCPCalculation());
+        inputPanel.add(new JLabel(""));
         inputPanel.add(calculateUcpButton);
         
         designMetricsPanel.add(inputPanel, BorderLayout.NORTH);
@@ -120,16 +168,97 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "请选择源码目录");
             return;
         }
-        codeResultArea.append("正在调用解析器解析源码: " + path + "\n");
-        codeResultArea.append("正在应用 2号同学的 CK度量 和 LK度量 模块...\n");
-        codeResultArea.append("正在应用 3号同学的 代码行 和 圈复杂度 模块...\n");
-        // 这里应调用 MetricsManager 进行集成分析
-        codeResultArea.append("分析完成。请查看各类的度量结果。\n\n");
+
+        codeResultArea.setText("");
+        codeResultArea.append("正在解析源码: " + path + "\n");
+
+        MetricsManager manager = new MetricsManager();
+        manager.setParser(new EclipseJdtCodeParser());
+
+        if (ckMetricsCheckBox.isSelected() || lkMetricsCheckBox.isSelected()) {
+            manager.registerCalculator(new CKLkMetricsCalculator());
+        }
+        if (traditionalMetricsCheckBox.isSelected()) {
+            manager.registerCalculator(new TraditionalMetricsCalculator());
+        }
+
+        try {
+            ProjectMetricsResult result = manager.runAnalysis(path);
+            renderProjectResult(result);
+        } catch (Exception ex) {
+            codeResultArea.append("分析失败: " + ex.getMessage() + "\n");
+        }
     }
     
     private void performUCPCalculation() {
-        designResultArea.append("正在调用 4号同学的 用例点计算 模块...\n");
-        // 提取 UCPInput，进行计算并输出
-        designResultArea.append("用例点计算完成。\n\n");
+        designResultArea.setText("");
+
+        UCPInput input = new UCPInput();
+        input.setSimpleUseCases(parseInt(simpleUseCasesField.getText()));
+        input.setAverageUseCases(parseInt(averageUseCasesField.getText()));
+        input.setComplexUseCases(parseInt(complexUseCasesField.getText()));
+        input.setSimpleActors(parseInt(simpleActorsField.getText()));
+        input.setAverageActors(parseInt(averageActorsField.getText()));
+        input.setComplexActors(parseInt(complexActorsField.getText()));
+        input.setTechnicalFactors(parseFactorList(technicalFactorsField.getText(), 13));
+        input.setEnvironmentalFactors(parseFactorList(environmentalFactorsField.getText(), 8));
+
+        UCPCalculator calculator = new UCPCalculator();
+        UCPResult result = calculator.calculate(input);
+
+        designResultArea.append("UAW=" + result.getUaw() + "\n");
+        designResultArea.append("UUCW=" + result.getUucw() + "\n");
+        designResultArea.append("UUCP=" + result.getUucp() + "\n");
+        designResultArea.append("TCF=" + result.getTcf() + "\n");
+        designResultArea.append("ECF=" + result.getEcf() + "\n");
+        designResultArea.append("UCP=" + result.getUcp() + "\n");
+    }
+
+    private int parseInt(String value) {
+        if (value == null) {
+            return 0;
+        }
+        String v = value.trim();
+        if (v.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(v);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private int[] parseFactorList(String text, int expectedLength) {
+        int[] arr = new int[expectedLength];
+        if (text == null || text.trim().isEmpty()) {
+            return arr;
+        }
+        String[] parts = text.split(",");
+        for (int i = 0; i < expectedLength && i < parts.length; i++) {
+            arr[i] = parseInt(parts[i]);
+        }
+        return arr;
+    }
+
+    private void renderProjectResult(ProjectMetricsResult result) {
+        codeResultArea.append("项目总LOC=" + result.getTotalLoc() + "\n");
+        codeResultArea.append("项目平均圈复杂度=" + result.getAvgCyclomaticComplexity() + "\n");
+        codeResultArea.append("类数量=" + result.getClasses().size() + "\n\n");
+
+        for (ClassInfo c : result.getClasses()) {
+            codeResultArea.append("Class: " + c.getClassName() + "\n");
+            if (c.getSuperClassName() != null && !c.getSuperClassName().trim().isEmpty()) {
+                codeResultArea.append("  extends: " + c.getSuperClassName() + "\n");
+            }
+
+            Map<String, Double> metrics = c.getMetrics();
+            List<String> keys = new ArrayList<>(metrics.keySet());
+            Collections.sort(keys);
+            for (String k : keys) {
+                codeResultArea.append("  " + k + " = " + metrics.get(k) + "\n");
+            }
+            codeResultArea.append("\n");
+        }
     }
 }
