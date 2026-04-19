@@ -3,6 +3,7 @@ package com.metrics.gui;
 import com.metrics.core.MetricsManager;
 import com.metrics.design.ClassDiagramMetricsCalculator;
 import com.metrics.design.ClassDiagramMetricsResult;
+import com.metrics.design.RequirementDesignMetricsEngine;
 import com.metrics.design.UCPCalculator;
 import com.metrics.design.UCPResult;
 import com.metrics.model.ClassInfo;
@@ -54,12 +55,19 @@ public class MainFrame extends JFrame {
     private JPanel designMetricsPanel;
     private JButton calculateUcpButton;
     private JTextArea designResultArea;
+    private JTextField fpEiField;
+    private JTextField fpEoField;
+    private JTextField fpEqField;
+    private JTextField fpIlfField;
+    private JTextField fpEifField;
+    private JTextField fpGscField;
     private JTextField simpleUseCasesField;
     private JTextField averageUseCasesField;
     private JTextField complexUseCasesField;
     private JTextField simpleActorsField;
     private JTextField averageActorsField;
     private JTextField complexActorsField;
+    private JTextField algorithmicWeightField;
     private JTextField technicalFactorsField;
     private JTextField environmentalFactorsField;
 
@@ -280,7 +288,7 @@ public class MainFrame extends JFrame {
         designMetricsPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
         designMetricsPanel.setBackground(PANEL_BG);
 
-        JPanel inputPanel = new JPanel(new GridLayout(9, 2, 8, 8));
+        JPanel inputPanel = new JPanel(new GridLayout(16, 2, 8, 8));
         inputPanel.setBackground(new Color(0xfffbeb));
         inputPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xfbbf24)),
@@ -288,19 +296,27 @@ public class MainFrame extends JFrame {
                         BorderFactory.createLineBorder(new Color(0xfde68a)),
                         new EmptyBorder(12, 12, 12, 12))));
 
+        addLabeledField(inputPanel, "EI 外部输入", fpEiField = new JTextField("0"));
+        addLabeledField(inputPanel, "EO 外部输出", fpEoField = new JTextField("0"));
+        addLabeledField(inputPanel, "EQ 外部查询", fpEqField = new JTextField("0"));
+        addLabeledField(inputPanel, "ILF 内部逻辑文件", fpIlfField = new JTextField("0"));
+        addLabeledField(inputPanel, "EIF 外部接口文件", fpEifField = new JTextField("0"));
+        addLabeledField(inputPanel, "GSC 总分 (0-70)", fpGscField = new JTextField("0"));
+
         addLabeledField(inputPanel, "简单用例数 (Simple)", simpleUseCasesField = new JTextField("0"));
         addLabeledField(inputPanel, "平均用例数 (Average)", averageUseCasesField = new JTextField("0"));
         addLabeledField(inputPanel, "复杂用例数 (Complex)", complexUseCasesField = new JTextField("0"));
         addLabeledField(inputPanel, "简单参与者 (Simple)", simpleActorsField = new JTextField("0"));
         addLabeledField(inputPanel, "平均参与者 (Average)", averageActorsField = new JTextField("0"));
         addLabeledField(inputPanel, "复杂参与者 (Complex)", complexActorsField = new JTextField("0"));
+        addLabeledField(inputPanel, "特征点算法权重 (>0)", algorithmicWeightField = new JTextField("1.00"));
         addLabeledField(inputPanel, "技术因子 (13 项, 0–5)", technicalFactorsField = new JTextField("0,0,0,0,0,0,0,0,0,0,0,0,0"));
         addLabeledField(inputPanel, "环境因子 (8 项, 0–5)", environmentalFactorsField = new JTextField("0,0,0,0,0,0,0,0"));
 
         JPanel ucpRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         ucpRow.setOpaque(false);
-        calculateUcpButton = styledButton("计算用例点 (UCP)", true);
-        calculateUcpButton.addActionListener(e -> performUCPCalculation());
+        calculateUcpButton = styledButton("计算 FP / UCP / 特征点", true);
+        calculateUcpButton.addActionListener(e -> performDesignMetricsCalculation());
         ucpRow.add(calculateUcpButton);
         inputPanel.add(new JLabel(""));
         inputPanel.add(ucpRow);
@@ -310,7 +326,7 @@ public class MainFrame extends JFrame {
         designResultArea = new JTextArea();
         designResultArea.setEditable(false);
         designResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        designResultArea.setText("点击 \"计算用例点（UCP）\" 以获得 UAW/UUCW/UUCP/TCF/ECF/UCP\n");
+        designResultArea.setText("点击 \"计算 FP / UCP / 特征点\" 以获得三类需求/设计度量结果\n");
         designResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
         designResultArea.setBackground(Color.WHITE);
         JScrollPane scrollPane = new JScrollPane(designResultArea);
@@ -609,28 +625,58 @@ public class MainFrame extends JFrame {
                 .replace("\"", "&quot;");
     }
 
-    private void performUCPCalculation() {
+    private void performDesignMetricsCalculation() {
         designResultArea.setText("");
 
-        UCPInput input = new UCPInput();
-        input.setSimpleUseCases(parseInt(simpleUseCasesField.getText()));
-        input.setAverageUseCases(parseInt(averageUseCasesField.getText()));
-        input.setComplexUseCases(parseInt(complexUseCasesField.getText()));
-        input.setSimpleActors(parseInt(simpleActorsField.getText()));
-        input.setAverageActors(parseInt(averageActorsField.getText()));
-        input.setComplexActors(parseInt(complexActorsField.getText()));
-        input.setTechnicalFactors(parseFactorList(technicalFactorsField.getText(), 13));
-        input.setEnvironmentalFactors(parseFactorList(environmentalFactorsField.getText(), 8));
+        try {
+            RequirementDesignMetricsEngine.FunctionPointInput fpInput =
+                    new RequirementDesignMetricsEngine.FunctionPointInput(
+                            parseInt(fpEiField.getText()),
+                            parseInt(fpEoField.getText()),
+                            parseInt(fpEqField.getText()),
+                            parseInt(fpIlfField.getText()),
+                            parseInt(fpEifField.getText()),
+                            parseInt(fpGscField.getText()));
+            RequirementDesignMetricsEngine.FunctionPointResult fpResult =
+                    RequirementDesignMetricsEngine.calculateFunctionPoint(fpInput);
 
-        UCPCalculator calculator = new UCPCalculator();
-        UCPResult result = calculator.calculate(input);
+            UCPInput input = new UCPInput();
+            input.setSimpleUseCases(parseInt(simpleUseCasesField.getText()));
+            input.setAverageUseCases(parseInt(averageUseCasesField.getText()));
+            input.setComplexUseCases(parseInt(complexUseCasesField.getText()));
+            input.setSimpleActors(parseInt(simpleActorsField.getText()));
+            input.setAverageActors(parseInt(averageActorsField.getText()));
+            input.setComplexActors(parseInt(complexActorsField.getText()));
+            input.setTechnicalFactors(parseFactorList(technicalFactorsField.getText(), 13));
+            input.setEnvironmentalFactors(parseFactorList(environmentalFactorsField.getText(), 8));
 
-        designResultArea.append("UAW=" + result.getUaw() + "\n");
-        designResultArea.append("UUCW=" + result.getUucw() + "\n");
-        designResultArea.append("UUCP=" + result.getUucp() + "\n");
-        designResultArea.append("TCF=" + result.getTcf() + "\n");
-        designResultArea.append("ECF=" + result.getEcf() + "\n");
-        designResultArea.append("UCP=" + result.getUcp() + "\n");
+            UCPCalculator calculator = new UCPCalculator();
+            UCPResult ucpResult = calculator.calculate(input);
+
+            RequirementDesignMetricsEngine.FeaturePointInput featurePointInput =
+                    new RequirementDesignMetricsEngine.FeaturePointInput(parseDouble(algorithmicWeightField.getText()));
+            RequirementDesignMetricsEngine.FeaturePointResult featurePointResult =
+                    RequirementDesignMetricsEngine.calculateFeaturePoint(fpResult, featurePointInput);
+
+            designResultArea.append("=== 功能点 FP ===\n");
+            designResultArea.append("UFP=" + fpResult.ufp + "\n");
+            designResultArea.append("VAF=" + formatDouble(fpResult.vaf) + "\n");
+            designResultArea.append("FP=" + formatDouble(fpResult.adjustedFp) + "\n\n");
+
+            designResultArea.append("=== 用例点 UCP ===\n");
+            designResultArea.append("UAW=" + ucpResult.getUaw() + "\n");
+            designResultArea.append("UUCW=" + ucpResult.getUucw() + "\n");
+            designResultArea.append("UUCP=" + ucpResult.getUucp() + "\n");
+            designResultArea.append("TCF=" + formatDouble(ucpResult.getTcf()) + "\n");
+            designResultArea.append("ECF=" + formatDouble(ucpResult.getEcf()) + "\n");
+            designResultArea.append("UCP=" + formatDouble(ucpResult.getUcp()) + "\n\n");
+
+            designResultArea.append("=== 特征点 Feature Point ===\n");
+            designResultArea.append("AlgorithmicWeight=" + formatDouble(featurePointResult.algorithmicWeight) + "\n");
+            designResultArea.append("FeaturePoint=" + formatDouble(featurePointResult.featurePoint) + "\n");
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "输入错误", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void performClassDiagramCalculation() {
