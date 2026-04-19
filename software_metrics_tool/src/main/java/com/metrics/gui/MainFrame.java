@@ -1,6 +1,8 @@
 package com.metrics.gui;
 
 import com.metrics.core.MetricsManager;
+import com.metrics.design.ClassDiagramMetricsCalculator;
+import com.metrics.design.ClassDiagramMetricsResult;
 import com.metrics.design.UCPCalculator;
 import com.metrics.design.UCPResult;
 import com.metrics.model.ClassInfo;
@@ -61,6 +63,16 @@ public class MainFrame extends JFrame {
     private JTextField technicalFactorsField;
     private JTextField environmentalFactorsField;
 
+    private JPanel classDiagramPanel;
+    private JButton calculateClassDiagramButton;
+    private JTextArea classDiagramResultArea;
+    private JTextField classCountField;
+    private JTextField avgMethodCountField;
+    private JTextField avgAttributeCountField;
+    private JTextField inheritanceDepthField;
+    private JTextField subclassCountField;
+    private JTextField relationCountField;
+
     public MainFrame() {
         setTitle("软件度量自动化工具");
         setSize(960, 700);
@@ -82,6 +94,8 @@ public class MainFrame extends JFrame {
         tabbedPane.addTab("面向对象与代码度量", codeMetricsPanel);
 
         initDesignMetricsPanel();
+        initClassDiagramPanel();
+        tabbedPane.addTab("类图度量", classDiagramPanel);
         tabbedPane.addTab("用例点与功能点度量", designMetricsPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
@@ -296,11 +310,53 @@ public class MainFrame extends JFrame {
         designResultArea = new JTextArea();
         designResultArea.setEditable(false);
         designResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        designResultArea.setText("点击 \"计算用例点（UCP）\" 以获得 UAW/UUCW/UUCP/TCF/ECF/UCP\n");
         designResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
         designResultArea.setBackground(Color.WHITE);
         JScrollPane scrollPane = new JScrollPane(designResultArea);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
         designMetricsPanel.add(scrollPane, BorderLayout.CENTER);
+    }
+
+    private void initClassDiagramPanel() {
+        classDiagramPanel = new JPanel(new BorderLayout(10, 10));
+        classDiagramPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
+        classDiagramPanel.setBackground(PANEL_BG);
+
+        JPanel inputPanel = new JPanel(new GridLayout(7, 2, 8, 8));
+        inputPanel.setBackground(new Color(0xf0fdf4));
+        inputPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0x22c55e)),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(0xbbf7d0)),
+                        new EmptyBorder(12, 12, 12, 12))));
+
+        addLabeledField(inputPanel, "类数量", classCountField = new JTextField("0"));
+        addLabeledField(inputPanel, "平均方法数", avgMethodCountField = new JTextField("0"));
+        addLabeledField(inputPanel, "平均属性数", avgAttributeCountField = new JTextField("0"));
+        addLabeledField(inputPanel, "继承层级", inheritanceDepthField = new JTextField("0"));
+        addLabeledField(inputPanel, "子类数", subclassCountField = new JTextField("0"));
+        addLabeledField(inputPanel, "类间关系数", relationCountField = new JTextField("0"));
+
+        JPanel classRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        classRow.setOpaque(false);
+        calculateClassDiagramButton = styledButton("计算类图度量", true);
+        calculateClassDiagramButton.addActionListener(e -> performClassDiagramCalculation());
+        classRow.add(calculateClassDiagramButton);
+        inputPanel.add(new JLabel(""));
+        inputPanel.add(classRow);
+
+        classDiagramPanel.add(inputPanel, BorderLayout.NORTH);
+
+        classDiagramResultArea = new JTextArea();
+        classDiagramResultArea.setEditable(false);
+        classDiagramResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        classDiagramResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+        classDiagramResultArea.setBackground(Color.WHITE);
+        classDiagramResultArea.setText("点击 \"计算类图度量\" 以获得 WMC/DIT/NOC/CBO/LCOM\n");
+        JScrollPane scrollPane = new JScrollPane(classDiagramResultArea);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
+        classDiagramPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
     private static void addLabeledField(JPanel grid, String label, JTextField field) {
@@ -575,6 +631,47 @@ public class MainFrame extends JFrame {
         designResultArea.append("TCF=" + result.getTcf() + "\n");
         designResultArea.append("ECF=" + result.getEcf() + "\n");
         designResultArea.append("UCP=" + result.getUcp() + "\n");
+    }
+
+    private void performClassDiagramCalculation() {
+        classDiagramResultArea.setText("");
+
+        int classCount = parseInt(classCountField.getText());
+        double avgMethodCount = parseDouble(avgMethodCountField.getText());
+        double avgAttributeCount = parseDouble(avgAttributeCountField.getText());
+        int inheritanceDepth = parseInt(inheritanceDepthField.getText());
+        int subclassCount = parseInt(subclassCountField.getText());
+        int relationCount = parseInt(relationCountField.getText());
+
+        ClassDiagramMetricsCalculator calculator = new ClassDiagramMetricsCalculator();
+        ClassDiagramMetricsResult result = calculator.calculate(
+                classCount,
+                avgMethodCount,
+                avgAttributeCount,
+                inheritanceDepth,
+                subclassCount,
+                relationCount);
+
+        classDiagramResultArea.append("WMC=" + formatDouble(result.getWmc()) + "\n");
+        classDiagramResultArea.append("DIT=" + formatDouble(result.getDit()) + "\n");
+        classDiagramResultArea.append("NOC=" + formatDouble(result.getNoc()) + "\n");
+        classDiagramResultArea.append("CBO=" + formatDouble(result.getCbo()) + "\n");
+        classDiagramResultArea.append("LCOM=" + formatDouble(result.getLcom()) + "\n");
+    }
+
+    private double parseDouble(String value) {
+        if (value == null) {
+            return 0.0;
+        }
+        String v = value.trim();
+        if (v.isEmpty()) {
+            return 0.0;
+        }
+        try {
+            return Double.parseDouble(v);
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
     }
 
     private int parseInt(String value) {

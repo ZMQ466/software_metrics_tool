@@ -1,7 +1,9 @@
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\parser\EclipseJdtCodeParser.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\Main.java
+E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\design\ClassDiagramMetricsResult.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\core\MetricsManager.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\core\MetricCalculator.java
+E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\design\ClassDiagramMetricsCalculator.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\modules\TraditionalMetricsCalculator.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\model\MethodInfo.java
 E:\desktabel\software_metrics_tool-patch-1\software_metrics_tool\src\main\java\com\metrics\modules\OOMetricsInterpreter.java

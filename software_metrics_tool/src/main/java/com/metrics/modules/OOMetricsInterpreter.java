@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 面向对象 CK / LK 指标的文字解释（教学演示用阈值说明，非工业级质量门禁）。
+ * 面向对象 CK / LK 指标的文字解释
  */
 public final class OOMetricsInterpreter {
 
