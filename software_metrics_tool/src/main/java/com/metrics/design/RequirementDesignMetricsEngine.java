@@ -37,7 +37,7 @@ public final class RequirementDesignMetricsEngine {
         + (input.eq * 4)
         + (input.ilf * 10)
         + (input.eif * 7);
-    double vaf = 0.65 + (0.01 * input.gscTotal);
+    double vaf = 0.6 + (0.01 * input.gscTotal);
     double adjustedFp = ufp * vaf;
 
     return new FunctionPointResult(ufp, vaf, adjustedFp);
@@ -90,6 +90,7 @@ public final class RequirementDesignMetricsEngine {
       throw new IllegalArgumentException(String.join(" ", validation.errors));
     }
 
+    // Feature Point 以调整后功能点 FP 为基准，再乘以算法复杂度权重。
     double featurePoint = fpResult.adjustedFp * input.algorithmicWeight;
     return new FeaturePointResult(fpResult.adjustedFp, input.algorithmicWeight, featurePoint);
   }

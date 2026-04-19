@@ -243,7 +243,7 @@ public class MainFrame extends JFrame {
         ckMetricsCheckBox = new JCheckBox("CK 度量集", true);
         lkMetricsCheckBox = new JCheckBox("LK 度量集", true);
         traditionalMetricsCheckBox = new JCheckBox("代码行 / 圈复杂度", true);
-        for (JCheckBox cb : new JCheckBox[]{ckMetricsCheckBox, lkMetricsCheckBox, traditionalMetricsCheckBox}) {
+        for (JCheckBox cb : new JCheckBox[] { ckMetricsCheckBox, lkMetricsCheckBox, traditionalMetricsCheckBox }) {
             cb.setOpaque(false);
             cb.setForeground(new Color(0x4338ca));
         }
@@ -285,44 +285,189 @@ public class MainFrame extends JFrame {
 
     private void initDesignMetricsPanel() {
         designMetricsPanel = new JPanel(new BorderLayout(10, 10));
-        designMetricsPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
+        designMetricsPanel.setBorder(new EmptyBorder(8, 12, 10, 12));
         designMetricsPanel.setBackground(PANEL_BG);
 
-        JPanel inputPanel = new JPanel(new GridLayout(16, 2, 8, 8));
+        // 使用 GridBagLayout 实现 6列，比例 1:2:1:2:1:2
+        JPanel inputPanel = new JPanel(new GridBagLayout());
         inputPanel.setBackground(new Color(0xfffbeb));
         inputPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xfbbf24)),
                 BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(new Color(0xfde68a)),
-                        new EmptyBorder(12, 12, 12, 12))));
+                        new EmptyBorder(8, 10, 8, 10))));
 
-        addLabeledField(inputPanel, "EI 外部输入", fpEiField = new JTextField("0"));
-        addLabeledField(inputPanel, "EO 外部输出", fpEoField = new JTextField("0"));
-        addLabeledField(inputPanel, "EQ 外部查询", fpEqField = new JTextField("0"));
-        addLabeledField(inputPanel, "ILF 内部逻辑文件", fpIlfField = new JTextField("0"));
-        addLabeledField(inputPanel, "EIF 外部接口文件", fpEifField = new JTextField("0"));
-        addLabeledField(inputPanel, "GSC 总分 (0-70)", fpGscField = new JTextField("0"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        addLabeledField(inputPanel, "简单用例数 (Simple)", simpleUseCasesField = new JTextField("0"));
-        addLabeledField(inputPanel, "平均用例数 (Average)", averageUseCasesField = new JTextField("0"));
-        addLabeledField(inputPanel, "复杂用例数 (Complex)", complexUseCasesField = new JTextField("0"));
-        addLabeledField(inputPanel, "简单参与者 (Simple)", simpleActorsField = new JTextField("0"));
-        addLabeledField(inputPanel, "平均参与者 (Average)", averageActorsField = new JTextField("0"));
-        addLabeledField(inputPanel, "复杂参与者 (Complex)", complexActorsField = new JTextField("0"));
-        addLabeledField(inputPanel, "特征点算法权重 (>0)", algorithmicWeightField = new JTextField("1.00"));
-        addLabeledField(inputPanel, "技术因子 (13 项, 0–5)", technicalFactorsField = new JTextField("0,0,0,0,0,0,0,0,0,0,0,0,0"));
-        addLabeledField(inputPanel, "环境因子 (8 项, 0–5)", environmentalFactorsField = new JTextField("0,0,0,0,0,0,0,0"));
+        // 列宽度比例：1,2,1,2,1,2
+        double[] weights = { 1.0, 2.0, 1.0, 2.0, 1.0, 2.0 };
 
-        JPanel ucpRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        ucpRow.setOpaque(false);
+        int row = 0;
+
+        // ========== 第1行 ==========
+        // 列0: EI
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = weights[0];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "EI", fpEiField = new JTextField("0"));
+        // 列1: 输入框
+        gbc.gridx = 1;
+        gbc.weightx = weights[1];
+        inputPanel.add(fpEiField, gbc);
+        // 列2: EO
+        gbc.gridx = 2;
+        gbc.weightx = weights[2];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "EO", fpEoField = new JTextField("0"));
+        // 列3: 输入框
+        gbc.gridx = 3;
+        gbc.weightx = weights[3];
+        inputPanel.add(fpEoField, gbc);
+        // 列4: EQ
+        gbc.gridx = 4;
+        gbc.weightx = weights[4];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "EQ", fpEqField = new JTextField("0"));
+        // 列5: 输入框
+        gbc.gridx = 5;
+        gbc.weightx = weights[5];
+        inputPanel.add(fpEqField, gbc);
+        row++;
+
+        // ========== 第2行 ==========
+        // 列0: ILF
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = weights[0];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "ILF", fpIlfField = new JTextField("0"));
+        gbc.gridx = 1;
+        gbc.weightx = weights[1];
+        inputPanel.add(fpIlfField, gbc);
+        // 列2: EIF
+        gbc.gridx = 2;
+        gbc.weightx = weights[2];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "EIF", fpEifField = new JTextField("0"));
+        gbc.gridx = 3;
+        gbc.weightx = weights[3];
+        inputPanel.add(fpEifField, gbc);
+        // 列4: GSC总分
+        gbc.gridx = 4;
+        gbc.weightx = weights[4];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "GSC总分", fpGscField = new JTextField("0"));
+        gbc.gridx = 5;
+        gbc.weightx = weights[5];
+        inputPanel.add(fpGscField, gbc);
+        row++;
+
+        // ========== 第3行 ==========
+        // 列0: 简单用例
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = weights[0];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "简单用例", simpleUseCasesField = new JTextField("0"));
+        gbc.gridx = 1;
+        gbc.weightx = weights[1];
+        inputPanel.add(simpleUseCasesField, gbc);
+        // 列2: 平均用例
+        gbc.gridx = 2;
+        gbc.weightx = weights[2];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "平均用例", averageUseCasesField = new JTextField("0"));
+        gbc.gridx = 3;
+        gbc.weightx = weights[3];
+        inputPanel.add(averageUseCasesField, gbc);
+        // 列4: 复杂用例
+        gbc.gridx = 4;
+        gbc.weightx = weights[4];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "复杂用例", complexUseCasesField = new JTextField("0"));
+        gbc.gridx = 5;
+        gbc.weightx = weights[5];
+        inputPanel.add(complexUseCasesField, gbc);
+        row++;
+
+        // ========== 第4行 ==========
+        // 列0: 简单参与者
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = weights[0];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "简单参与者", simpleActorsField = new JTextField("0"));
+        gbc.gridx = 1;
+        gbc.weightx = weights[1];
+        inputPanel.add(simpleActorsField, gbc);
+        // 列2: 平均参与者
+        gbc.gridx = 2;
+        gbc.weightx = weights[2];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "平均参与者", averageActorsField = new JTextField("0"));
+        gbc.gridx = 3;
+        gbc.weightx = weights[3];
+        inputPanel.add(averageActorsField, gbc);
+        // 列4: 复杂参与者
+        gbc.gridx = 4;
+        gbc.weightx = weights[4];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "复杂参与者", complexActorsField = new JTextField("0"));
+        gbc.gridx = 5;
+        gbc.weightx = weights[5];
+        inputPanel.add(complexActorsField, gbc);
+        row++;
+
+        // ========== 第5行：特征点权重（跨两列，但为了保持布局，放在第5行） ==========
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = weights[0];
+        addLabeledFieldCompactGrid(inputPanel, gbc, "特征点权重", algorithmicWeightField = new JTextField("1.00"));
+        gbc.gridx = 1;
+        gbc.weightx = weights[1];
+        inputPanel.add(algorithmicWeightField, gbc);
+        // 列2-5 留空或放其他
+        row++;
+
+        // ========== 第6行：技术因子（独占一行，跨6列） ==========
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 6;
+        gbc.weightx = 1.0;
+        JPanel techPanel = new JPanel(new BorderLayout(8, 0));
+        techPanel.setOpaque(false);
+        JLabel techLabel = new JLabel("技术因子 (13项, 0-5):");
+        techLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        techLabel.setPreferredSize(new Dimension(140, 26));
+        techPanel.add(techLabel, BorderLayout.WEST);
+        technicalFactorsField = new JTextField("0,0,0,0,0,0,0,0,0,0,0,0,0");
+        techPanel.add(technicalFactorsField, BorderLayout.CENTER);
+        inputPanel.add(techPanel, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // ========== 第7行：环境因子（独占一行，跨6列） ==========
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 6;
+        JPanel envPanel = new JPanel(new BorderLayout(8, 0));
+        envPanel.setOpaque(false);
+        JLabel envLabel = new JLabel("环境因子 (8项, 0-5):");
+        envLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        envLabel.setPreferredSize(new Dimension(140, 26));
+        envPanel.add(envLabel, BorderLayout.WEST);
+        environmentalFactorsField = new JTextField("0,0,0,0,0,0,0,0");
+        envPanel.add(environmentalFactorsField, BorderLayout.CENTER);
+        inputPanel.add(envPanel, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // ========== 第8行：按钮 ==========
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 6;
+        gbc.anchor = GridBagConstraints.EAST;
         calculateUcpButton = styledButton("计算 FP / UCP / 特征点", true);
         calculateUcpButton.addActionListener(e -> performDesignMetricsCalculation());
-        ucpRow.add(calculateUcpButton);
-        inputPanel.add(new JLabel(""));
-        inputPanel.add(ucpRow);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setOpaque(false);
+        buttonPanel.add(calculateUcpButton);
+        inputPanel.add(buttonPanel, gbc);
 
         designMetricsPanel.add(inputPanel, BorderLayout.NORTH);
 
+        // 结果区域（保持不变）
         designResultArea = new JTextArea();
         designResultArea.setEditable(false);
         designResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
@@ -334,6 +479,13 @@ public class MainFrame extends JFrame {
         designMetricsPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
+    // 辅助方法：只添加标签，不添加文本框
+    private void addLabeledFieldCompactGrid(JPanel panel, GridBagConstraints gbc,
+            String labelText, JTextField field) {
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        panel.add(label, gbc);
+    }
     private void initClassDiagramPanel() {
         classDiagramPanel = new JPanel(new BorderLayout(10, 10));
         classDiagramPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
@@ -386,6 +538,19 @@ public class MainFrame extends JFrame {
         grid.add(field);
     }
 
+   
+
+    private static void addLabeledFieldCompact(JPanel grid, String label, JTextField field) {
+        JLabel l = new JLabel(label);
+        l.setForeground(MUTED);
+        l.setFont(l.getFont().deriveFont(Font.PLAIN, 11.5f));
+        grid.add(l);
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
+                new EmptyBorder(3, 8, 3, 8)));
+        grid.add(field);
+    }
+
     private void performCodeAnalysis() {
         String path = sourcePathField.getText();
         if (path == null || path.trim().isEmpty()) {
@@ -415,7 +580,8 @@ public class MainFrame extends JFrame {
             statusLabel.setForeground(new Color(0xb91c1c));
             statusLabel.setText("<html><div style='text-align:center;color:#b91c1c'>分析失败，请检查路径或依赖后重试</div></html>");
             projectSummaryLabel.setText(summaryHtmlError());
-            classDetailPane.setText(emptyDetailHtml("分析失败", escapeHtml(ex.getMessage() != null ? ex.getMessage() : ex.toString())));
+            classDetailPane.setText(
+                    emptyDetailHtml("分析失败", escapeHtml(ex.getMessage() != null ? ex.getMessage() : ex.toString())));
         }
     }
 
@@ -629,16 +795,15 @@ public class MainFrame extends JFrame {
         designResultArea.setText("");
 
         try {
-            RequirementDesignMetricsEngine.FunctionPointInput fpInput =
-                    new RequirementDesignMetricsEngine.FunctionPointInput(
-                            parseInt(fpEiField.getText()),
-                            parseInt(fpEoField.getText()),
-                            parseInt(fpEqField.getText()),
-                            parseInt(fpIlfField.getText()),
-                            parseInt(fpEifField.getText()),
-                            parseInt(fpGscField.getText()));
-            RequirementDesignMetricsEngine.FunctionPointResult fpResult =
-                    RequirementDesignMetricsEngine.calculateFunctionPoint(fpInput);
+            RequirementDesignMetricsEngine.FunctionPointInput fpInput = new RequirementDesignMetricsEngine.FunctionPointInput(
+                    parseInt(fpEiField.getText()),
+                    parseInt(fpEoField.getText()),
+                    parseInt(fpEqField.getText()),
+                    parseInt(fpIlfField.getText()),
+                    parseInt(fpEifField.getText()),
+                    parseInt(fpGscField.getText()));
+            RequirementDesignMetricsEngine.FunctionPointResult fpResult = RequirementDesignMetricsEngine
+                    .calculateFunctionPoint(fpInput);
 
             UCPInput input = new UCPInput();
             input.setSimpleUseCases(parseInt(simpleUseCasesField.getText()));
@@ -653,10 +818,10 @@ public class MainFrame extends JFrame {
             UCPCalculator calculator = new UCPCalculator();
             UCPResult ucpResult = calculator.calculate(input);
 
-            RequirementDesignMetricsEngine.FeaturePointInput featurePointInput =
-                    new RequirementDesignMetricsEngine.FeaturePointInput(parseDouble(algorithmicWeightField.getText()));
-            RequirementDesignMetricsEngine.FeaturePointResult featurePointResult =
-                    RequirementDesignMetricsEngine.calculateFeaturePoint(fpResult, featurePointInput);
+            RequirementDesignMetricsEngine.FeaturePointInput featurePointInput = new RequirementDesignMetricsEngine.FeaturePointInput(
+                    parseDouble(algorithmicWeightField.getText()));
+            RequirementDesignMetricsEngine.FeaturePointResult featurePointResult = RequirementDesignMetricsEngine
+                    .calculateFeaturePoint(fpResult, featurePointInput);
 
             designResultArea.append("=== 功能点 FP ===\n");
             designResultArea.append("UFP=" + fpResult.ufp + "\n");
