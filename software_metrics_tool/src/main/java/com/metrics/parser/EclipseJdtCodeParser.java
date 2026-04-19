@@ -6,6 +6,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -42,6 +43,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 基于 Eclipse JDT {@link ASTParser} 的 Java 源码解析：提取类、字段、方法、
+ * 继承关系、方法调用与字段访问，供 CK / LK 等面向对象度量使用。
+ */
 public class EclipseJdtCodeParser implements CodeParser {
     @Override
     public List<ClassInfo> parseFile(String filePath) {
@@ -76,91 +81,135 @@ public class EclipseJdtCodeParser implements CodeParser {
     }
 
     private List<ClassInfo> parseCompilationUnit(String source) {
-        ASTParser parser = ASTParser.newParser(AST.JLS8);
+        ASTParser parser = ASTParser.newParser(AST.JLS14);
         parser.setSource(source.toCharArray());
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
         parser.setResolveBindings(false);
 
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
 
+        String packagePrefix = "";
+        if (cu.getPackage() != null) {
+            packagePrefix = cu.getPackage().getName().getFullyQualifiedName();
+        }
+
         List<ClassInfo> results = new ArrayList<>();
-        cu.accept(new ASTVisitor() {
-            @Override
-            public boolean visit(TypeDeclaration node) {
-                ClassInfo classInfo = new ClassInfo(node.getName().getIdentifier());
-                if (node.getSuperclassType() != null) {
-                    classInfo.setSuperClassName(node.getSuperclassType().toString());
-                }
-                for (Object itf : node.superInterfaceTypes()) {
-                    classInfo.getInterfaces().add(itf.toString());
-                }
-
-                Set<String> fieldNames = new HashSet<>();
-                for (FieldDeclaration fieldDecl : node.getFields()) {
-                    for (Object frag : fieldDecl.fragments()) {
-                        if (frag instanceof VariableDeclarationFragment) {
-                            String name = ((VariableDeclarationFragment) frag).getName().getIdentifier();
-                            fieldNames.add(name);
-                            classInfo.getFields().add(name);
-                        }
-                    }
-                    addTypeAsCalledClass(classInfo, fieldDecl.getType());
-                }
-
-                for (MethodDeclaration methodDecl : node.getMethods()) {
-                    MethodInfo methodInfo = new MethodInfo(methodDecl.getName().getIdentifier());
-                    if (methodDecl.getReturnType2() != null) {
-                        methodInfo.setReturnType(methodDecl.getReturnType2().toString());
-                        addTypeAsCalledClass(classInfo, methodDecl.getReturnType2());
-                    } else {
-                        methodInfo.setReturnType("void");
-                    }
-
-                    for (Object p : methodDecl.parameters()) {
-                        if (p instanceof SingleVariableDeclaration) {
-                            SingleVariableDeclaration svd = (SingleVariableDeclaration) p;
-                            methodInfo.getParameters().add(svd.getType() + " " + svd.getName());
-                            addTypeAsCalledClass(classInfo, svd.getType());
-                        }
-                    }
-
-                    int startLine = cu.getLineNumber(methodDecl.getStartPosition());
-                    int endLine = cu.getLineNumber(methodDecl.getStartPosition() + methodDecl.getLength());
-                    methodInfo.setStartLine(startLine);
-                    methodInfo.setEndLine(endLine);
-                    if (startLine > 0 && endLine > 0 && endLine >= startLine) {
-                        methodInfo.setLoc(endLine - startLine + 1);
-                    } else {
-                        methodInfo.setLoc(0);
-                    }
-
-                    MethodBodyVisitor bodyVisitor = new MethodBodyVisitor(fieldNames, classInfo, methodInfo);
-                    if (methodDecl.getBody() != null) {
-                        methodDecl.getBody().accept(bodyVisitor);
-                    }
-                    methodInfo.setCyclomaticComplexity(bodyVisitor.getCyclomaticComplexity());
-
-                    classInfo.getMethods().add(methodInfo);
-                }
-
-                results.add(classInfo);
-                return false;
+        for (Object t : cu.types()) {
+            if (t instanceof TypeDeclaration) {
+                parseTypeDeclaration((TypeDeclaration) t, cu, packagePrefix, "", results);
             }
-        });
-
+        }
         return results;
+    }
+
+    /**
+     * 递归解析顶层/成员类；{@code binaryNameQualifier} 为外层简单名链，如 {@code Outer} 或 {@code Outer$Inner}。
+     */
+    private void parseTypeDeclaration(TypeDeclaration node, CompilationUnit cu, String packagePrefix,
+                                      String binaryNameQualifier, List<ClassInfo> results) {
+        String simple = node.getName().getIdentifier();
+        String nestedBinary = binaryNameQualifier.isEmpty() ? simple : binaryNameQualifier + "$" + simple;
+        String qualifiedName = packagePrefix.isEmpty() ? nestedBinary : packagePrefix + "." + nestedBinary;
+
+        ClassInfo classInfo = new ClassInfo(nestedBinary);
+        classInfo.setQualifiedName(qualifiedName);
+
+        if (node.getSuperclassType() != null) {
+            String sup = stripTypeArguments(node.getSuperclassType().toString());
+            classInfo.setSuperClassName(sup);
+            addTypeAsCalledClass(classInfo, node.getSuperclassType());
+        }
+        for (Object itf : node.superInterfaceTypes()) {
+            String itfStr = stripTypeArguments(itf.toString());
+            classInfo.getInterfaces().add(itfStr);
+            addTypeAsCalledClass(classInfo, (Type) itf);
+        }
+
+        Set<String> fieldNames = new HashSet<>();
+        for (FieldDeclaration fieldDecl : node.getFields()) {
+            for (Object frag : fieldDecl.fragments()) {
+                if (frag instanceof VariableDeclarationFragment) {
+                    String name = ((VariableDeclarationFragment) frag).getName().getIdentifier();
+                    fieldNames.add(name);
+                    classInfo.getFields().add(name);
+                }
+            }
+            addTypeAsCalledClass(classInfo, fieldDecl.getType());
+        }
+
+        for (MethodDeclaration methodDecl : node.getMethods()) {
+            MethodInfo methodInfo = new MethodInfo(methodDecl.getName().getIdentifier());
+            if (methodDecl.getReturnType2() != null) {
+                methodInfo.setReturnType(methodDecl.getReturnType2().toString());
+                addTypeAsCalledClass(classInfo, methodDecl.getReturnType2());
+            } else {
+                methodInfo.setReturnType("void");
+            }
+
+            for (Object p : methodDecl.parameters()) {
+                if (p instanceof SingleVariableDeclaration) {
+                    SingleVariableDeclaration svd = (SingleVariableDeclaration) p;
+                    methodInfo.getParameters().add(svd.getType() + " " + svd.getName());
+                    addTypeAsCalledClass(classInfo, svd.getType());
+                }
+            }
+
+            int startLine = cu.getLineNumber(methodDecl.getStartPosition());
+            int endLine = cu.getLineNumber(methodDecl.getStartPosition() + methodDecl.getLength());
+            methodInfo.setStartLine(startLine);
+            methodInfo.setEndLine(endLine);
+            if (startLine > 0 && endLine > 0 && endLine >= startLine) {
+                methodInfo.setLoc(endLine - startLine + 1);
+            } else {
+                methodInfo.setLoc(0);
+            }
+
+            MethodBodyVisitor bodyVisitor = new MethodBodyVisitor(fieldNames, classInfo, methodInfo);
+            if (methodDecl.getBody() != null) {
+                methodDecl.getBody().accept(bodyVisitor);
+            }
+            methodInfo.setCyclomaticComplexity(bodyVisitor.getCyclomaticComplexity());
+
+            classInfo.getMethods().add(methodInfo);
+        }
+
+        results.add(classInfo);
+
+        for (BodyDeclaration bd : (List<BodyDeclaration>) node.bodyDeclarations()) {
+            if (bd instanceof TypeDeclaration) {
+                parseTypeDeclaration((TypeDeclaration) bd, cu, packagePrefix, nestedBinary, results);
+            }
+        }
+    }
+
+    private static String stripTypeArguments(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String t = raw.trim();
+        int depth = 0;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < t.length(); i++) {
+            char c = t.charAt(i);
+            if (c == '<') {
+                depth++;
+                if (depth == 1) {
+                    break;
+                }
+            }
+            if (depth == 0) {
+                sb.append(c);
+            }
+        }
+        return sb.toString().trim();
     }
 
     private void addTypeAsCalledClass(ClassInfo classInfo, Type type) {
         if (type == null) {
             return;
         }
-        String t = type.toString();
-        if (t == null) {
-            return;
-        }
-        t = t.trim();
-        if (t.isEmpty()) {
+        String t = stripTypeArguments(type.toString());
+        if (t == null || t.isEmpty()) {
             return;
         }
         if (!classInfo.getCalledClasses().contains(t)) {
@@ -258,8 +307,8 @@ public class EclipseJdtCodeParser implements CodeParser {
         @Override
         public boolean visit(ClassInstanceCreation node) {
             if (node.getType() != null) {
-                String t = node.getType().toString();
-                if (t != null && !t.trim().isEmpty() && !classInfo.getCalledClasses().contains(t)) {
+                String t = stripTypeArguments(node.getType().toString());
+                if (!t.isEmpty() && !classInfo.getCalledClasses().contains(t)) {
                     classInfo.getCalledClasses().add(t);
                 }
             }
@@ -269,8 +318,8 @@ public class EclipseJdtCodeParser implements CodeParser {
         @Override
         public boolean visit(VariableDeclarationStatement node) {
             if (node.getType() != null) {
-                String t = node.getType().toString();
-                if (t != null && !t.trim().isEmpty() && !classInfo.getCalledClasses().contains(t)) {
+                String t = stripTypeArguments(node.getType().toString());
+                if (!t.isEmpty() && !classInfo.getCalledClasses().contains(t)) {
                     classInfo.getCalledClasses().add(t);
                 }
             }

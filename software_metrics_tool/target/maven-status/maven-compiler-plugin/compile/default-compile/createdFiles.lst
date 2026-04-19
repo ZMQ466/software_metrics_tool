@@ -1,10 +1,9 @@
-com\metrics\parser\EclipseJdtCodeParser$1.class
 com\metrics\modules\TraditionalMetricsCalculator.class
 com\metrics\core\MetricCalculator.class
 com\metrics\Main.class
 com\metrics\model\UCPInput.class
 com\metrics\parser\EclipseJdtCodeParser$MethodBodyVisitor.class
-com\metrics\modules\CKLkMetricsCalculator$1.class
+com\metrics\modules\OOMetricsInterpreter.class
 com\metrics\design\UCPResult.class
 com\metrics\parser\EclipseJdtCodeParser.class
 com\metrics\model\ClassInfo.class

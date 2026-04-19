@@ -10,7 +10,10 @@ import java.util.HashMap;
  * 用于面向对象度量（2号同学）和传统度量（3号同学）的分析基础
  */
 public class ClassInfo {
+    /** 简单类名（含匿名/内部类时常用 Outer$Inner 形式） */
     private String className;
+    /** 包名限定全名，用于项目级继承与耦合统计，避免同名类冲突 */
+    private String qualifiedName;
     private String superClassName;
     private List<String> interfaces;
     
@@ -28,6 +31,7 @@ public class ClassInfo {
 
     public ClassInfo(String className) {
         this.className = className;
+        this.qualifiedName = null;
         this.interfaces = new ArrayList<>();
         this.fields = new ArrayList<>();
         this.methods = new ArrayList<>();
@@ -38,6 +42,17 @@ public class ClassInfo {
     // Getters and Setters
     public String getClassName() { return className; }
     public void setClassName(String className) { this.className = className; }
+
+    /**
+     * 返回 {@link #qualifiedName}；若未设置则退回简单 {@link #className}。
+     */
+    public String getQualifiedName() {
+        return qualifiedName != null && !qualifiedName.trim().isEmpty() ? qualifiedName : className;
+    }
+
+    public void setQualifiedName(String qualifiedName) {
+        this.qualifiedName = qualifiedName;
+    }
     
     public String getSuperClassName() { return superClassName; }
     public void setSuperClassName(String superClassName) { this.superClassName = superClassName; }
