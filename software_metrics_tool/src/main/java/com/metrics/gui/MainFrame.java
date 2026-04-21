@@ -1,8 +1,7 @@
 package com.metrics.gui;
 
 import com.metrics.core.MetricsManager;
-import com.metrics.design.ClassDiagramMetricsCalculator;
-import com.metrics.design.ClassDiagramMetricsResult;
+import com.metrics.design.PlantUmlClassDiagramAnalyzer;
 import com.metrics.design.RequirementDesignMetricsEngine;
 import com.metrics.design.UCPCalculator;
 import com.metrics.design.UCPResult;
@@ -18,6 +17,10 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -72,14 +75,10 @@ public class MainFrame extends JFrame {
     private JTextField environmentalFactorsField;
 
     private JPanel classDiagramPanel;
+    private JButton uploadPlantUmlButton;
     private JButton calculateClassDiagramButton;
+    private JTextArea plantUmlCodeArea;
     private JTextArea classDiagramResultArea;
-    private JTextField classCountField;
-    private JTextField avgMethodCountField;
-    private JTextField avgAttributeCountField;
-    private JTextField inheritanceDepthField;
-    private JTextField subclassCountField;
-    private JTextField relationCountField;
 
     public MainFrame() {
         setTitle("软件度量自动化工具");
@@ -491,40 +490,39 @@ public class MainFrame extends JFrame {
         classDiagramPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
         classDiagramPanel.setBackground(PANEL_BG);
 
-        JPanel inputPanel = new JPanel(new GridLayout(7, 2, 8, 8));
-        inputPanel.setBackground(new Color(0xf0fdf4));
-        inputPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0x22c55e)),
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(0xbbf7d0)),
-                        new EmptyBorder(12, 12, 12, 12))));
-
-        addLabeledField(inputPanel, "类数量", classCountField = new JTextField("0"));
-        addLabeledField(inputPanel, "平均方法数", avgMethodCountField = new JTextField("0"));
-        addLabeledField(inputPanel, "平均属性数", avgAttributeCountField = new JTextField("0"));
-        addLabeledField(inputPanel, "继承层级", inheritanceDepthField = new JTextField("0"));
-        addLabeledField(inputPanel, "子类数", subclassCountField = new JTextField("0"));
-        addLabeledField(inputPanel, "类间关系数", relationCountField = new JTextField("0"));
-
-        JPanel classRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        classRow.setOpaque(false);
-        calculateClassDiagramButton = styledButton("计算类图度量", true);
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actionPanel.setOpaque(false);
+        uploadPlantUmlButton = styledButton("上传 PlantUML 代码", false);
+        uploadPlantUmlButton.addActionListener(e -> performUploadPlantUml());
+        calculateClassDiagramButton = styledButton("解析 + CK/LK 度量分析", true);
         calculateClassDiagramButton.addActionListener(e -> performClassDiagramCalculation());
-        classRow.add(calculateClassDiagramButton);
-        inputPanel.add(new JLabel(""));
-        inputPanel.add(classRow);
+        actionPanel.add(uploadPlantUmlButton);
+        actionPanel.add(calculateClassDiagramButton);
+        classDiagramPanel.add(actionPanel, BorderLayout.NORTH);
 
-        classDiagramPanel.add(inputPanel, BorderLayout.NORTH);
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        centerPanel.setOpaque(false);
+
+        plantUmlCodeArea = new JTextArea();
+        plantUmlCodeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        plantUmlCodeArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+        plantUmlCodeArea.setBackground(Color.WHITE);
+        plantUmlCodeArea.setText("@startuml\nclass User {\n  +id: Long\n  +name: String\n  +getName(): String\n}\n@enduml\n");
+        JScrollPane inputScroll = new JScrollPane(plantUmlCodeArea);
+        inputScroll.setBorder(BorderFactory.createTitledBorder("PlantUML Class Diagram"));
+        centerPanel.add(inputScroll);
 
         classDiagramResultArea = new JTextArea();
         classDiagramResultArea.setEditable(false);
-        classDiagramResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        classDiagramResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         classDiagramResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
         classDiagramResultArea.setBackground(Color.WHITE);
-        classDiagramResultArea.setText("点击 \"计算类图度量\" 以获得 WMC/DIT/NOC/CBO/LCOM\n");
-        JScrollPane scrollPane = new JScrollPane(classDiagramResultArea);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
-        classDiagramPanel.add(scrollPane, BorderLayout.CENTER);
+        classDiagramResultArea.setText("上传 PlantUML 代码，点击 解析 + CK/LK 分析 以获得结果.\n");
+        JScrollPane resultScroll = new JScrollPane(classDiagramResultArea);
+        resultScroll.setBorder(BorderFactory.createTitledBorder("CK/LK Metrics Result"));
+        centerPanel.add(resultScroll);
+
+        classDiagramPanel.add(centerPanel, BorderLayout.CENTER);
     }
 
     private static void addLabeledField(JPanel grid, String label, JTextField field) {
@@ -844,30 +842,94 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void performUploadPlantUml() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select PlantUML file");
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        Path path = chooser.getSelectedFile().toPath();
+        try {
+            String text = Files.readString(path, StandardCharsets.UTF_8);
+            plantUmlCodeArea.setText(text);
+            plantUmlCodeArea.setCaretPosition(0);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to read file: " + ex.getMessage(),
+                    "Read Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void performClassDiagramCalculation() {
         classDiagramResultArea.setText("");
+        String plantUml = plantUmlCodeArea.getText();
+        if (plantUml == null || plantUml.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please paste PlantUML class diagram text first.",
+                    "Input Required",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
 
-        int classCount = parseInt(classCountField.getText());
-        double avgMethodCount = parseDouble(avgMethodCountField.getText());
-        double avgAttributeCount = parseDouble(avgAttributeCountField.getText());
-        int inheritanceDepth = parseInt(inheritanceDepthField.getText());
-        int subclassCount = parseInt(subclassCountField.getText());
-        int relationCount = parseInt(relationCountField.getText());
+        try {
+            ProjectMetricsResult result = PlantUmlClassDiagramAnalyzer.analyze(plantUml);
+            List<ClassInfo> classes = new ArrayList<>(result.getClasses());
+            classes.sort(Comparator.comparing(ClassInfo::getQualifiedName, String.CASE_INSENSITIVE_ORDER));
 
-        ClassDiagramMetricsCalculator calculator = new ClassDiagramMetricsCalculator();
-        ClassDiagramMetricsResult result = calculator.calculate(
-                classCount,
-                avgMethodCount,
-                avgAttributeCount,
-                inheritanceDepth,
-                subclassCount,
-                relationCount);
+            if (classes.isEmpty()) {
+                classDiagramResultArea.setText("No classes parsed from PlantUML.\n");
+                return;
+            }
 
-        classDiagramResultArea.append("WMC=" + formatDouble(result.getWmc()) + "\n");
-        classDiagramResultArea.append("DIT=" + formatDouble(result.getDit()) + "\n");
-        classDiagramResultArea.append("NOC=" + formatDouble(result.getNoc()) + "\n");
-        classDiagramResultArea.append("CBO=" + formatDouble(result.getCbo()) + "\n");
-        classDiagramResultArea.append("LCOM=" + formatDouble(result.getLcom()) + "\n");
+            classDiagramResultArea.append("Classes Parsed=" + classes.size() + "\n\n");
+            double sumWmc = 0.0;
+            double sumDit = 0.0;
+            double sumNoc = 0.0;
+            double sumCbo = 0.0;
+            double sumLcom = 0.0;
+
+            for (ClassInfo c : classes) {
+                double wmc = c.getMetrics().getOrDefault("CK_WMC", 0.0);
+                double dit = c.getMetrics().getOrDefault("CK_DIT", 0.0);
+                double noc = c.getMetrics().getOrDefault("CK_NOC", 0.0);
+                double cbo = c.getMetrics().getOrDefault("CK_CBO", 0.0);
+                double lcom = c.getMetrics().getOrDefault("CK_LCOM", 0.0);
+
+                sumWmc += wmc;
+                sumDit += dit;
+                sumNoc += noc;
+                sumCbo += cbo;
+                sumLcom += lcom;
+
+                classDiagramResultArea.append("[" + c.getQualifiedName() + "]\n");
+                classDiagramResultArea.append("  WMC=" + formatDouble(wmc) + "\n");
+                classDiagramResultArea.append("  DIT=" + formatDouble(dit) + "\n");
+                classDiagramResultArea.append("  NOC=" + formatDouble(noc) + "\n");
+                classDiagramResultArea.append("  CBO=" + formatDouble(cbo) + "\n");
+                classDiagramResultArea.append("  LCOM=" + formatDouble(lcom) + "\n\n");
+            }
+
+            int n = classes.size();
+            classDiagramResultArea.append("=== Average ===\n");
+            classDiagramResultArea.append("WMC=" + formatDouble(sumWmc / n) + "\n");
+            classDiagramResultArea.append("DIT=" + formatDouble(sumDit / n) + "\n");
+            classDiagramResultArea.append("NOC=" + formatDouble(sumNoc / n) + "\n");
+            classDiagramResultArea.append("CBO=" + formatDouble(sumCbo / n) + "\n");
+            classDiagramResultArea.append("LCOM=" + formatDouble(sumLcom / n) + "\n");
+            classDiagramResultArea.setCaretPosition(0);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this,
+                    ex.getMessage(),
+                    "PlantUML Parse Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to parse PlantUML: " + ex.getMessage(),
+                    "PlantUML Parse Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private double parseDouble(String value) {
