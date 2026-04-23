@@ -178,10 +178,15 @@ public final class PlantUmlClassDiagramAnalyzer {
 
         String leftRaw = line.substring(0, index).trim();
         String rightRaw = line.substring(index + token.length()).trim();
+
         int colonIdx = rightRaw.indexOf(':');
         if (colonIdx >= 0) {
             rightRaw = rightRaw.substring(0, colonIdx).trim();
         }
+
+        // 关键修复：先去掉 multiplicity，例如 "1"、"0..*"、"*"
+        leftRaw = removeQuotedMultiplicity(leftRaw);
+        rightRaw = removeQuotedMultiplicity(rightRaw);
 
         String leftId = resolveRelationEndpointId(leftRaw, aliasToId);
         String rightId = resolveRelationEndpointId(rightRaw, aliasToId);
@@ -216,6 +221,14 @@ public final class PlantUmlClassDiagramAnalyzer {
                 right.getCalledClasses().add(left.getQualifiedName());
                 break;
         }
+    }
+
+    private static String removeQuotedMultiplicity(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        // 删除 "1"、"0..*"、"*"... 这类 multiplicity
+        return text.replaceAll("\"\\s*(\\*|\\d+|\\d+\\.\\.\\d+|\\d+\\.\\.\\*|\\*\\.\\.\\*)\\s*\"", "").trim();
     }
 
     private static void applyMethodFieldHeuristic(Map<String, ClassInfo> classesById) {
@@ -407,6 +420,18 @@ public final class PlantUmlClassDiagramAnalyzer {
         return aliasToId.getOrDefault(t, t);
     }
 
+    private static boolean isMultiplicityToken(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return false;
+        }
+        String t = token.trim();
+        return t.matches("\\*")
+                || t.matches("\\d+")
+                || t.matches("\\d+\\.\\.\\d+")
+                || t.matches("\\d+\\.\\.\\*")
+                || t.matches("\\*\\.\\.\\*");
+    }
+
     private static String resolveRelationEndpointId(String endpointRaw, Map<String, String> aliasToId) {
         String raw = endpointRaw.trim();
         if (raw.isEmpty()) {
@@ -416,9 +441,13 @@ public final class PlantUmlClassDiagramAnalyzer {
         for (int i = tokens.length - 1; i >= 0; i--) {
             String c = tokens[i].replace("\"", "").trim();
             c = c.replaceAll("[^\\w$.]", "");
-            if (!c.isEmpty()) {
-                return resolveId(c, aliasToId);
+            if (c.isEmpty()) {
+                continue;
             }
+            if (isMultiplicityToken(c)) {
+                continue;
+            }
+            return resolveId(c, aliasToId);
         }
         return "";
     }
