@@ -25,10 +25,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 自动化度量工具主界面：代码度量页支持按类浏览与 HTML 样式化展示。
@@ -77,6 +82,8 @@ public class MainFrame extends JFrame {
     private JTextField algorithmicWeightField;
     private JTextField technicalFactorsField;
     private JTextField environmentalFactorsField;
+    private JButton parseUseCasePlantUmlButton;
+    private JTextArea useCasePlantUmlArea;
 
     private JPanel classDiagramPanel;
     private JButton uploadPlantUmlButton;
@@ -462,7 +469,50 @@ public class MainFrame extends JFrame {
         gbc.gridwidth = 1;
         row++;
 
-        // ========== 第8行：按钮 ==========
+        // ========== 第8行：PlantUML 用例图输入（跨6列） ==========
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 6;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+
+        JPanel useCasePlantPanel = new JPanel(new BorderLayout(8, 8));
+        useCasePlantPanel.setOpaque(false);
+        JLabel useCasePlantLabel = new JLabel("PlantUML 用例图输入（可选，解析后自动填充用例/参与者分类）");
+        useCasePlantLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        useCasePlantPanel.add(useCasePlantLabel, BorderLayout.NORTH);
+
+        useCasePlantUmlArea = new JTextArea(5, 20);
+        useCasePlantUmlArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        useCasePlantUmlArea.setLineWrap(true);
+        useCasePlantUmlArea.setWrapStyleWord(true);
+        useCasePlantUmlArea.setText("@startuml\n"
+            + "left to right direction\n"
+            + "actor User\n"
+            + "actor Admin\n"
+            + "User --> (Login)\n"
+            + "User --> (Search Book)\n"
+            + "Admin --> (Manage Order)\n"
+            + "@enduml\n");
+        JScrollPane useCasePlantScroll = new JScrollPane(useCasePlantUmlArea);
+        useCasePlantScroll.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
+        useCasePlantPanel.add(useCasePlantScroll, BorderLayout.CENTER);
+
+        parseUseCasePlantUmlButton = styledButton("解析PlantUML用例图", false);
+        parseUseCasePlantUmlButton.addActionListener(e -> performParseUseCasePlantUml());
+        JPanel parseButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        parseButtonPanel.setOpaque(false);
+        parseButtonPanel.add(parseUseCasePlantUmlButton);
+        useCasePlantPanel.add(parseButtonPanel, BorderLayout.SOUTH);
+
+        inputPanel.add(useCasePlantPanel, gbc);
+        gbc.gridwidth = 1;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        row++;
+
+        // ========== 第9行：按钮 ==========
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 6;
@@ -856,6 +906,162 @@ public class MainFrame extends JFrame {
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "输入错误", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void performParseUseCasePlantUml() {
+        String plantUml = useCasePlantUmlArea.getText();
+        if (plantUml == null || plantUml.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "请先输入 PlantUML 用例图代码。",
+                    "输入为空",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        try {
+            UseCasePlantUmlParseResult parsed = parseUseCasePlantUml(plantUml);
+
+            simpleUseCasesField.setText(String.valueOf(parsed.simpleUseCases));
+            averageUseCasesField.setText(String.valueOf(parsed.averageUseCases));
+            complexUseCasesField.setText(String.valueOf(parsed.complexUseCases));
+            simpleActorsField.setText(String.valueOf(parsed.simpleActors));
+            averageActorsField.setText(String.valueOf(parsed.averageActors));
+            complexActorsField.setText(String.valueOf(parsed.complexActors));
+
+            String summary = "PlantUML 解析完成：用例(简单/平均/复杂)="
+                    + parsed.simpleUseCases + "/" + parsed.averageUseCases + "/" + parsed.complexUseCases
+                    + "，参与者(简单/平均/复杂)="
+                    + parsed.simpleActors + "/" + parsed.averageActors + "/" + parsed.complexActors;
+
+            designResultArea.append("\n=== PlantUML 用例图自动填充 ===\n");
+            designResultArea.append(summary + "\n");
+            JOptionPane.showMessageDialog(this, summary, "解析成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this,
+                    ex.getMessage(),
+                    "解析失败",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private UseCasePlantUmlParseResult parseUseCasePlantUml(String rawText) {
+        String text = rawText.replace("\r\n", "\n");
+
+        Pattern actorDeclPattern = Pattern.compile("(?im)^\\s*actor\\s+(?:\\\"([^\\\"]+)\\\"\\s+as\\s+)?(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)?.*$");
+        Pattern actorToUseCasePattern = Pattern.compile("(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)\\s*[-.o*]+>\\s*\\(([^)]+)\\)");
+        Pattern useCaseToActorPattern = Pattern.compile("\\(([^)]+)\\)\\s*[-.o*]+>\\s*(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)");
+        Pattern useCasePattern = Pattern.compile("\\(([^)]+)\\)");
+
+        Set<String> declaredActors = new LinkedHashSet<>();
+        Matcher actorDeclMatcher = actorDeclPattern.matcher(text);
+        while (actorDeclMatcher.find()) {
+            String aliasOrName = actorDeclMatcher.group(2);
+            String quotedName = actorDeclMatcher.group(1);
+            String actorName = sanitizeReference(aliasOrName != null && !aliasOrName.trim().isEmpty() ? aliasOrName : quotedName);
+            if (!actorName.isEmpty()) {
+                declaredActors.add(actorName);
+            }
+        }
+
+        Map<String, Set<String>> actorToUseCases = new LinkedHashMap<>();
+        Map<String, Set<String>> useCaseToActors = new LinkedHashMap<>();
+        Set<String> allUseCases = new LinkedHashSet<>();
+
+        Matcher ucMatcher = useCasePattern.matcher(text);
+        while (ucMatcher.find()) {
+            String useCase = sanitizeUseCaseName(ucMatcher.group(1));
+            if (!useCase.isEmpty()) {
+                allUseCases.add(useCase);
+            }
+        }
+
+        Matcher a2u = actorToUseCasePattern.matcher(text);
+        while (a2u.find()) {
+            String actor = sanitizeReference(a2u.group(1));
+            String useCase = sanitizeUseCaseName(a2u.group(2));
+            if (actor.isEmpty() || useCase.isEmpty()) {
+                continue;
+            }
+            declaredActors.add(actor);
+            allUseCases.add(useCase);
+            actorToUseCases.computeIfAbsent(actor, k -> new LinkedHashSet<>()).add(useCase);
+            useCaseToActors.computeIfAbsent(useCase, k -> new LinkedHashSet<>()).add(actor);
+        }
+
+        Matcher u2a = useCaseToActorPattern.matcher(text);
+        while (u2a.find()) {
+            String useCase = sanitizeUseCaseName(u2a.group(1));
+            String actor = sanitizeReference(u2a.group(2));
+            if (actor.isEmpty() || useCase.isEmpty()) {
+                continue;
+            }
+            declaredActors.add(actor);
+            allUseCases.add(useCase);
+            actorToUseCases.computeIfAbsent(actor, k -> new LinkedHashSet<>()).add(useCase);
+            useCaseToActors.computeIfAbsent(useCase, k -> new LinkedHashSet<>()).add(actor);
+        }
+
+        if (declaredActors.isEmpty() && allUseCases.isEmpty()) {
+            throw new IllegalArgumentException("未识别到参与者或用例，请检查 PlantUML 语法（如 actor A、A --> (Login)）。");
+        }
+
+        for (String actor : declaredActors) {
+            actorToUseCases.computeIfAbsent(actor, k -> new LinkedHashSet<>());
+        }
+        for (String useCase : allUseCases) {
+            useCaseToActors.computeIfAbsent(useCase, k -> new LinkedHashSet<>());
+        }
+
+        int simpleUc = 0;
+        int averageUc = 0;
+        int complexUc = 0;
+        for (String useCase : allUseCases) {
+            int actorCount = useCaseToActors.getOrDefault(useCase, Collections.emptySet()).size();
+            if (actorCount <= 1) {
+                simpleUc++;
+            } else if (actorCount == 2) {
+                averageUc++;
+            } else {
+                complexUc++;
+            }
+        }
+
+        int simpleActor = 0;
+        int averageActor = 0;
+        int complexActor = 0;
+        for (String actor : declaredActors) {
+            int useCaseCount = actorToUseCases.getOrDefault(actor, Collections.emptySet()).size();
+            if (useCaseCount <= 1) {
+                simpleActor++;
+            } else if (useCaseCount <= 3) {
+                averageActor++;
+            } else {
+                complexActor++;
+            }
+        }
+
+        return new UseCasePlantUmlParseResult(
+                simpleUc,
+                averageUc,
+                complexUc,
+                simpleActor,
+                averageActor,
+                complexActor);
+    }
+
+    private static String sanitizeReference(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String v = raw.trim();
+        if (v.startsWith("\"") && v.endsWith("\"") && v.length() >= 2) {
+            v = v.substring(1, v.length() - 1);
+        }
+        return v.trim();
+    }
+
+    private static String sanitizeUseCaseName(String raw) {
+        return sanitizeReference(raw);
     }
 
     private void performUploadPlantUml() {
@@ -1284,5 +1490,28 @@ public class MainFrame extends JFrame {
             arr[i] = parseInt(parts[i]);
         }
         return arr;
+    }
+
+    private static final class UseCasePlantUmlParseResult {
+        private final int simpleUseCases;
+        private final int averageUseCases;
+        private final int complexUseCases;
+        private final int simpleActors;
+        private final int averageActors;
+        private final int complexActors;
+
+        private UseCasePlantUmlParseResult(int simpleUseCases,
+                                           int averageUseCases,
+                                           int complexUseCases,
+                                           int simpleActors,
+                                           int averageActors,
+                                           int complexActors) {
+            this.simpleUseCases = simpleUseCases;
+            this.averageUseCases = averageUseCases;
+            this.complexUseCases = complexUseCases;
+            this.simpleActors = simpleActors;
+            this.averageActors = averageActors;
+            this.complexActors = complexActors;
+        }
     }
 }
