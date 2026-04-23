@@ -1,0 +1,38 @@
+@startuml
+start
+
+:Input reader ID and book ID;
+:Validate reader information;
+
+if (Reader valid?) then (yes)
+  :Check borrow limit;
+
+  if (Borrow limit exceeded?) then (yes)
+    :Reject borrow request;
+    stop
+  else (no)
+    :Check book availability;
+
+    if (Book available?) then (yes)
+      :Create borrow record;
+      :Update book status to borrowed;
+      :Notify reader of success;
+    else (no)
+      :Ask whether to reserve book;
+
+      if (Reserve book?) then (yes)
+        :Create reservation record;
+        :Notify reader of reservation success;
+      else (no)
+        :End request without borrowing;
+      endif
+
+    endif
+  endif
+
+else (no)
+  :Reject request and show error;
+endif
+
+stop
+@enduml

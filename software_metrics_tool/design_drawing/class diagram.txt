@@ -1,0 +1,78 @@
+@startuml
+
+class User {
+  - userId : String
+  - name : String
+  - password : String
+  + login() : boolean
+  + logout() : void
+}
+
+class Reader {
+  - borrowLimit : int
+  - fineAmount : double
+  + searchBook(keyword : String) : List<Book>
+  + borrowBook(book : Book) : boolean
+  + returnBook(book : Book) : boolean
+  + reserveBook(book : Book) : boolean
+}
+
+class Librarian {
+  - employeeId : String
+  + addBook(book : Book) : void
+  + removeBook(bookId : String) : void
+  + updateBookInfo(book : Book) : void
+  + generateReport() : Report
+}
+
+class Book {
+  - bookId : String
+  - title : String
+  - author : String
+  - status : String
+  + isAvailable() : boolean
+  + updateStatus(status : String) : void
+}
+
+class BorrowRecord {
+  - recordId : String
+  - borrowDate : Date
+  - dueDate : Date
+  - returnDate : Date
+  + calculateFine() : double
+  + closeRecord() : void
+}
+
+class Reservation {
+  - reservationId : String
+  - reservationDate : Date
+  + cancelReservation() : void
+}
+
+class Report {
+  - reportId : String
+  - generatedDate : Date
+  + exportReport() : void
+}
+
+class LibrarySystem {
+  - systemName : String
+  + validateReader(reader : Reader) : boolean
+  + checkAvailability(book : Book) : boolean
+  + processBorrow(reader : Reader, book : Book) : boolean
+  + processReturn(reader : Reader, book : Book) : boolean
+}
+
+User <|-- Reader
+User <|-- Librarian
+
+Reader "1" --> "0..*" BorrowRecord : has
+Reader "1" --> "0..*" Reservation : makes
+BorrowRecord "*" --> "1" Book : relates to
+Reservation "*" --> "1" Book : reserves
+Librarian --> Report : generates
+LibrarySystem --> Reader : validates
+LibrarySystem --> Book : checks
+LibrarySystem --> BorrowRecord : creates
+
+@enduml

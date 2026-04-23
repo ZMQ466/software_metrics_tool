@@ -1,6 +1,7 @@
 package com.metrics.gui;
 
 import com.metrics.core.MetricsManager;
+import com.metrics.design.DeepSeekClient;
 import com.metrics.design.PlantUmlClassDiagramAnalyzer;
 import com.metrics.design.RequirementDesignMetricsEngine;
 import com.metrics.design.UCPCalculator;
@@ -27,6 +28,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * 自动化度量工具主界面：代码度量页支持按类浏览与 HTML 样式化展示。
@@ -45,6 +47,7 @@ public class MainFrame extends JFrame {
     private JTextField sourcePathField;
     private JButton browseButton;
     private JButton analyzeCodeButton;
+    private JButton aiAnalyzeCodeButton;
     private JComboBox<String> classSelectorCombo;
     private JEditorPane classDetailPane;
     private JLabel projectSummaryLabel;
@@ -57,6 +60,7 @@ public class MainFrame extends JFrame {
 
     private JPanel designMetricsPanel;
     private JButton calculateUcpButton;
+    private JButton aiAnalyzeDesignButton;
     private JTextArea designResultArea;
     private JTextField fpEiField;
     private JTextField fpEoField;
@@ -77,8 +81,11 @@ public class MainFrame extends JFrame {
     private JPanel classDiagramPanel;
     private JButton uploadPlantUmlButton;
     private JButton calculateClassDiagramButton;
+    private JButton aiAnalyzeClassDiagramButton;
     private JTextArea plantUmlCodeArea;
     private JTextArea classDiagramResultArea;
+
+    private final DeepSeekClient deepSeekClient = new DeepSeekClient();
 
     public MainFrame() {
         setTitle("软件度量自动化工具");
@@ -159,8 +166,11 @@ public class MainFrame extends JFrame {
         });
         analyzeCodeButton = styledButton("开始分析", true);
         analyzeCodeButton.addActionListener(e -> performCodeAnalysis());
+        aiAnalyzeCodeButton = styledButton("智能分析", false);
+        aiAnalyzeCodeButton.addActionListener(e -> performAiCodeAnalysis());
         pathActions.add(browseButton);
         pathActions.add(analyzeCodeButton);
+        pathActions.add(aiAnalyzeCodeButton);
         pathRow.add(pathActions, BorderLayout.EAST);
         north.add(pathRow);
         north.add(Box.createVerticalStrut(10));
@@ -459,8 +469,11 @@ public class MainFrame extends JFrame {
         gbc.anchor = GridBagConstraints.EAST;
         calculateUcpButton = styledButton("计算 FP / UCP / 特征点", true);
         calculateUcpButton.addActionListener(e -> performDesignMetricsCalculation());
+        aiAnalyzeDesignButton = styledButton("智能分析", false);
+        aiAnalyzeDesignButton.addActionListener(e -> performAiDesignAnalysis());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
+        buttonPanel.add(aiAnalyzeDesignButton);
         buttonPanel.add(calculateUcpButton);
         inputPanel.add(buttonPanel, gbc);
 
@@ -496,8 +509,11 @@ public class MainFrame extends JFrame {
         uploadPlantUmlButton.addActionListener(e -> performUploadPlantUml());
         calculateClassDiagramButton = styledButton("解析 + CK/LK 度量分析", true);
         calculateClassDiagramButton.addActionListener(e -> performClassDiagramCalculation());
+        aiAnalyzeClassDiagramButton = styledButton("智能分析", false);
+        aiAnalyzeClassDiagramButton.addActionListener(e -> performAiClassDiagramAnalysis());
         actionPanel.add(uploadPlantUmlButton);
         actionPanel.add(calculateClassDiagramButton);
+        actionPanel.add(aiAnalyzeClassDiagramButton);
         classDiagramPanel.add(actionPanel, BorderLayout.NORTH);
 
         JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 0));
@@ -930,6 +946,302 @@ public class MainFrame extends JFrame {
                     "PlantUML Parse Error",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void performAiCodeAnalysis() {
+        int idx = classSelectorCombo.getSelectedIndex();
+        if (idx < 0 || idx >= lastAnalyzedClasses.size()) {
+            JOptionPane.showMessageDialog(this,
+                    "请先执行代码分析并选择一个类。",
+                    "提示",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        ClassInfo c = lastAnalyzedClasses.get(idx);
+        String prompt = buildCodePagePrompt(c);
+        runAiAnalysisAsync(prompt, aiAnalyzeCodeButton, reply -> showAiResultDialog("代码度量智能分析", reply));
+    }
+
+    private void performAiDesignAnalysis() {
+        try {
+            RequirementDesignMetricsEngine.FunctionPointInput fpInput = new RequirementDesignMetricsEngine.FunctionPointInput(
+                    parseInt(fpEiField.getText()),
+                    parseInt(fpEoField.getText()),
+                    parseInt(fpEqField.getText()),
+                    parseInt(fpIlfField.getText()),
+                    parseInt(fpEifField.getText()),
+                    parseInt(fpGscField.getText()));
+            RequirementDesignMetricsEngine.FunctionPointResult fpResult = RequirementDesignMetricsEngine
+                    .calculateFunctionPoint(fpInput);
+
+            UCPInput input = new UCPInput();
+            input.setSimpleUseCases(parseInt(simpleUseCasesField.getText()));
+            input.setAverageUseCases(parseInt(averageUseCasesField.getText()));
+            input.setComplexUseCases(parseInt(complexUseCasesField.getText()));
+            input.setSimpleActors(parseInt(simpleActorsField.getText()));
+            input.setAverageActors(parseInt(averageActorsField.getText()));
+            input.setComplexActors(parseInt(complexActorsField.getText()));
+            input.setTechnicalFactors(parseFactorList(technicalFactorsField.getText(), 13));
+            input.setEnvironmentalFactors(parseFactorList(environmentalFactorsField.getText(), 8));
+            UCPResult ucpResult = new UCPCalculator().calculate(input);
+
+            RequirementDesignMetricsEngine.FeaturePointInput featurePointInput = new RequirementDesignMetricsEngine.FeaturePointInput(
+                    parseDouble(algorithmicWeightField.getText()));
+            RequirementDesignMetricsEngine.FeaturePointResult featurePointResult = RequirementDesignMetricsEngine
+                    .calculateFeaturePoint(fpResult, featurePointInput);
+
+            String prompt = buildDesignPagePrompt(fpResult, ucpResult, featurePointResult);
+            runAiAnalysisAsync(prompt, aiAnalyzeDesignButton, reply -> showAiResultDialog("用例点与功能点智能分析", reply));
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "输入错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void performAiClassDiagramAnalysis() {
+        String plantUml = plantUmlCodeArea.getText();
+        if (plantUml == null || plantUml.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "请先上传或粘贴 PlantUML 类图代码。",
+                    "提示",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        try {
+            ProjectMetricsResult result = PlantUmlClassDiagramAnalyzer.analyze(plantUml);
+            List<ClassInfo> classes = new ArrayList<>(result.getClasses());
+            if (classes.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "PlantUML 未解析出任何类。",
+                        "提示",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            String prompt = buildClassDiagramPagePrompt(classes);
+            runAiAnalysisAsync(prompt, aiAnalyzeClassDiagramButton, reply -> showAiResultDialog("类图度量智能分析", reply));
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "类图分析失败: " + ex.getMessage(),
+                    "错误",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void runAiAnalysisAsync(String prompt, JButton triggerButton, Consumer<String> onSuccess) {
+        triggerButton.setEnabled(false);
+        String oldText = triggerButton.getText();
+        triggerButton.setText("分析中...");
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return deepSeekClient.analyze(prompt);
+            }
+
+            @Override
+            protected void done() {
+                triggerButton.setEnabled(true);
+                triggerButton.setText(oldText);
+                try {
+                    onSuccess.accept(get());
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "大模型调用失败: " + ex.getMessage()
+                                    + "\n请检查 DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL 配置。",
+                            "智能分析失败",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    private String buildCodePagePrompt(ClassInfo c) {
+        Map<String, Double> m = c.getMetrics();
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据以下软件度量结果，分析该类的设计质量，并给出3条简洁的改进建议。\n");
+        sb.append("类名: ").append(c.getQualifiedName()).append("\n");
+        sb.append("WMC=").append(metricValue(m, "CK_WMC")).append("\n");
+        sb.append("DIT=").append(metricValue(m, "CK_DIT")).append("\n");
+        sb.append("NOC=").append(metricValue(m, "CK_NOC")).append("\n");
+        sb.append("CBO=").append(metricValue(m, "CK_CBO")).append("\n");
+        sb.append("RFC=").append(metricValue(m, "CK_RFC")).append("\n");
+        sb.append("LCOM=").append(metricValue(m, "CK_LCOM")).append("\n");
+        sb.append("LCOM4=").append(metricValue(m, "LK_LCOM_NORM")).append("\n");
+        sb.append("LCOM_HS=").append(metricValue(m, "LK_COHESION")).append("\n\n");
+        appendCommonAiRequirements(sb);
+        return sb.toString();
+    }
+
+    private String buildDesignPagePrompt(RequirementDesignMetricsEngine.FunctionPointResult fp,
+                                         UCPResult ucp,
+                                         RequirementDesignMetricsEngine.FeaturePointResult featurePoint) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据以下用例点与功能点度量结果，分析当前需求/设计规模与风险，并给出3条简洁的改进建议。\n");
+        sb.append("UFP=").append(fp.ufp).append("\n");
+        sb.append("VAF=").append(formatDouble(fp.vaf)).append("\n");
+        sb.append("FP=").append(formatDouble(fp.adjustedFp)).append("\n");
+        sb.append("UAW=").append(formatDouble(ucp.getUaw())).append("\n");
+        sb.append("UUCW=").append(formatDouble(ucp.getUucw())).append("\n");
+        sb.append("UUCP=").append(formatDouble(ucp.getUucp())).append("\n");
+        sb.append("TCF=").append(formatDouble(ucp.getTcf())).append("\n");
+        sb.append("ECF=").append(formatDouble(ucp.getEcf())).append("\n");
+        sb.append("UCP=").append(formatDouble(ucp.getUcp())).append("\n");
+        sb.append("FeaturePoint=").append(formatDouble(featurePoint.featurePoint)).append("\n\n");
+        appendCommonAiRequirements(sb);
+        return sb.toString();
+    }
+
+    private String buildClassDiagramPagePrompt(List<ClassInfo> classes) {
+        double sumWmc = 0.0;
+        double sumDit = 0.0;
+        double sumNoc = 0.0;
+        double sumCbo = 0.0;
+        double sumRfc = 0.0;
+        double sumLcom = 0.0;
+        double sumLkNorm = 0.0;
+        double sumLkHs = 0.0;
+        for (ClassInfo c : classes) {
+            Map<String, Double> m = c.getMetrics();
+            sumWmc += m.getOrDefault("CK_WMC", 0.0);
+            sumDit += m.getOrDefault("CK_DIT", 0.0);
+            sumNoc += m.getOrDefault("CK_NOC", 0.0);
+            sumCbo += m.getOrDefault("CK_CBO", 0.0);
+            sumRfc += m.getOrDefault("CK_RFC", 0.0);
+            sumLcom += m.getOrDefault("CK_LCOM", 0.0);
+            sumLkNorm += m.getOrDefault("LK_LCOM_NORM", 0.0);
+            sumLkHs += m.getOrDefault("LK_COHESION", 0.0);
+        }
+        int n = classes.size();
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据以下类图解析后的CK/LK度量结果，分析设计质量，并给出3条简洁的改进建议。\n");
+        sb.append("类数量=").append(n).append("\n");
+        sb.append("WMC(avg)=").append(formatDouble(sumWmc / n)).append("\n");
+        sb.append("DIT(avg)=").append(formatDouble(sumDit / n)).append("\n");
+        sb.append("NOC(avg)=").append(formatDouble(sumNoc / n)).append("\n");
+        sb.append("CBO(avg)=").append(formatDouble(sumCbo / n)).append("\n");
+        sb.append("RFC(avg)=").append(formatDouble(sumRfc / n)).append("\n");
+        sb.append("LCOM(avg)=").append(formatDouble(sumLcom / n)).append("\n");
+        sb.append("LCOM4(avg)=").append(formatDouble(sumLkNorm / n)).append("\n");
+        sb.append("LCOM_HS(avg)=").append(formatDouble(sumLkHs / n)).append("\n\n");
+        appendCommonAiRequirements(sb);
+        return sb.toString();
+    }
+
+    private static String metricValue(Map<String, Double> metrics, String key) {
+        Double v = metrics.get(key);
+        return v == null ? "N/A" : formatDouble(v);
+    }
+
+    private static void appendCommonAiRequirements(StringBuilder sb) {
+        sb.append("要求：\n");
+        sb.append("1. 先给总体评价\n");
+        sb.append("2. 再指出主要风险\n");
+        sb.append("3. 最后给3条可执行建议\n");
+        sb.append("4. 用中文输出\n");
+    }
+
+    private void showAiResultDialog(String title, String content) {
+        JEditorPane pane = new JEditorPane();
+        pane.setEditable(false);
+        pane.setContentType("text/html");
+        pane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        pane.setText(buildStyledAiHtml(content));
+        pane.setCaretPosition(0);
+        JScrollPane scrollPane = new JScrollPane(pane);
+        scrollPane.setPreferredSize(new Dimension(640, 420));
+        JOptionPane.showMessageDialog(this, scrollPane, title, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static String buildStyledAiHtml(String raw) {
+        String text = raw == null ? "" : raw.replace("\r\n", "\n").trim();
+        String[] lines = text.split("\n");
+
+        StringBuilder overall = new StringBuilder();
+        StringBuilder risk = new StringBuilder();
+        StringBuilder advice = new StringBuilder();
+        StringBuilder other = new StringBuilder();
+
+        int mode = 0; // 1 overall, 2 risk, 3 advice, 4 other
+        for (String line : lines) {
+            String t = line.trim();
+            if (t.isEmpty()) {
+                continue;
+            }
+            String low = t.toLowerCase(Locale.ROOT);
+            if (containsAny(low, "总体评价", "整体评价", "综合评价")) {
+                mode = 1;
+                appendLine(overall, t);
+                continue;
+            }
+            if (containsAny(low, "主要风险", "风险点", "风险")) {
+                mode = 2;
+                appendLine(risk, t);
+                continue;
+            }
+            if (containsAny(low, "建议", "改进")) {
+                mode = 3;
+                appendLine(advice, t);
+                continue;
+            }
+
+            if (mode == 1) {
+                appendLine(overall, t);
+            } else if (mode == 2) {
+                appendLine(risk, t);
+            } else if (mode == 3) {
+                appendLine(advice, t);
+            } else {
+                mode = 4;
+                appendLine(other, t);
+            }
+        }
+
+        if (overall.length() == 0 && risk.length() == 0 && advice.length() == 0) {
+            appendLine(other, text);
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<html><body style='font-family:Segoe UI,Microsoft YaHei UI,sans-serif;margin:10px 12px;color:#0f172a;'>");
+        html.append("<div style='font-size:12px;color:#64748b;margin-bottom:10px;'>智能分析结果</div>");
+        if (overall.length() > 0) {
+            html.append(sectionHtml("总体评价", "#0369a1", "#e0f2fe", overall.toString()));
+        }
+        if (risk.length() > 0) {
+            html.append(sectionHtml("主要风险", "#b91c1c", "#fee2e2", risk.toString()));
+        }
+        if (advice.length() > 0) {
+            html.append(sectionHtml("改进建议", "#0f766e", "#ccfbf1", advice.toString()));
+        }
+        if (other.length() > 0) {
+            html.append(sectionHtml("补充说明", "#5b21b6", "#ede9fe", other.toString()));
+        }
+        html.append("</body></html>");
+        return html.toString();
+    }
+
+    private static String sectionHtml(String title, String fg, String bg, String content) {
+        return "<div style='margin:0 0 12px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;'>"
+                + "<div style='padding:8px 10px;background:" + bg + ";color:" + fg + ";font-weight:700;font-size:13px;'>"
+                + escapeHtml(title) + "</div>"
+                + "<div style='padding:10px 12px;line-height:1.65;font-size:13px;color:#1e293b;white-space:pre-wrap;'>"
+                + escapeHtml(content) + "</div>"
+                + "</div>";
+    }
+
+    private static void appendLine(StringBuilder sb, String line) {
+        if (sb.length() > 0) {
+            sb.append('\n');
+        }
+        sb.append(line);
+    }
+
+    private static boolean containsAny(String text, String... keys) {
+        for (String k : keys) {
+            if (text.contains(k.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private double parseDouble(String value) {

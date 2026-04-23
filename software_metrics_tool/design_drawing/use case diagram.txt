@@ -1,0 +1,42 @@
+@startuml
+left to right direction
+
+actor Reader as R
+actor Librarian as L
+
+rectangle "Library Management System" {
+  usecase "Login" as UC1
+  usecase "Search Book" as UC2
+  usecase "Borrow Book" as UC3
+  usecase "Return Book" as UC4
+  usecase "Reserve Book" as UC5
+  usecase "Pay Fine" as UC6
+  usecase "Manage Book Info" as UC7
+  usecase "Manage Reader Info" as UC8
+  usecase "Generate Borrow Report" as UC9
+  usecase "Check Availability" as UC10
+  usecase "Calculate Fine" as UC11
+  usecase "Validate Reader" as UC12
+}
+
+R --> UC1
+R --> UC2
+R --> UC3
+R --> UC4
+R --> UC5
+R --> UC6
+
+L --> UC1
+L --> UC7
+L --> UC8
+L --> UC9
+L --> UC3
+L --> UC4
+
+UC3 .> UC10 : <<include>>
+UC3 .> UC12 : <<include>>
+UC4 .> UC11 : <<include>>
+UC5 .> UC10 : <<include>>
+UC6 .> UC11 : <<extend>>
+
+@enduml
