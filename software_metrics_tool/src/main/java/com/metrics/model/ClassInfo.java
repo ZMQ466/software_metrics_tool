@@ -14,6 +14,9 @@ public class ClassInfo {
     private String className;
     /** 包名限定全名，用于项目级继承与耦合统计，避免同名类冲突 */
     private String qualifiedName;
+    private String sourceFilePath;
+    private int startLine;
+    private int endLine;
     private String superClassName;
     private List<String> interfaces;
     
@@ -53,6 +56,15 @@ public class ClassInfo {
     public void setQualifiedName(String qualifiedName) {
         this.qualifiedName = qualifiedName;
     }
+
+    public String getSourceFilePath() { return sourceFilePath; }
+    public void setSourceFilePath(String sourceFilePath) { this.sourceFilePath = sourceFilePath; }
+
+    public int getStartLine() { return startLine; }
+    public void setStartLine(int startLine) { this.startLine = startLine; }
+
+    public int getEndLine() { return endLine; }
+    public void setEndLine(int endLine) { this.endLine = endLine; }
     
     public String getSuperClassName() { return superClassName; }
     public void setSuperClassName(String superClassName) { this.superClassName = superClassName; }

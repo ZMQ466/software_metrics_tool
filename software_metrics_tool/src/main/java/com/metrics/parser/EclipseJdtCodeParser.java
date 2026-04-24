@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
@@ -52,7 +53,7 @@ public class EclipseJdtCodeParser implements CodeParser {
     public List<ClassInfo> parseFile(String filePath) {
         try {
             String source = Files.readString(Paths.get(filePath), StandardCharsets.UTF_8);
-            return parseCompilationUnit(source);
+            return parseCompilationUnit(source, filePath);
         } catch (IOException e) {
             throw new RuntimeException("读取文件失败: " + filePath, e);
         }
@@ -80,7 +81,7 @@ public class EclipseJdtCodeParser implements CodeParser {
         }
     }
 
-    private List<ClassInfo> parseCompilationUnit(String source) {
+    private List<ClassInfo> parseCompilationUnit(String source, String filePath) {
         ASTParser parser = ASTParser.newParser(AST.JLS14);
         parser.setSource(source.toCharArray());
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -96,7 +97,7 @@ public class EclipseJdtCodeParser implements CodeParser {
         List<ClassInfo> results = new ArrayList<>();
         for (Object t : cu.types()) {
             if (t instanceof TypeDeclaration) {
-                parseTypeDeclaration((TypeDeclaration) t, cu, packagePrefix, "", results);
+                parseTypeDeclaration((TypeDeclaration) t, cu, packagePrefix, "", results, filePath);
             }
         }
         return results;
@@ -106,13 +107,18 @@ public class EclipseJdtCodeParser implements CodeParser {
      * 递归解析顶层/成员类；{@code binaryNameQualifier} 为外层简单名链，如 {@code Outer} 或 {@code Outer$Inner}。
      */
     private void parseTypeDeclaration(TypeDeclaration node, CompilationUnit cu, String packagePrefix,
-                                      String binaryNameQualifier, List<ClassInfo> results) {
+                                      String binaryNameQualifier, List<ClassInfo> results, String filePath) {
         String simple = node.getName().getIdentifier();
         String nestedBinary = binaryNameQualifier.isEmpty() ? simple : binaryNameQualifier + "$" + simple;
         String qualifiedName = packagePrefix.isEmpty() ? nestedBinary : packagePrefix + "." + nestedBinary;
 
         ClassInfo classInfo = new ClassInfo(nestedBinary);
         classInfo.setQualifiedName(qualifiedName);
+        classInfo.setSourceFilePath(filePath);
+        int classStartLine = cu.getLineNumber(node.getStartPosition());
+        int classEndLine = cu.getLineNumber(node.getStartPosition() + node.getLength());
+        classInfo.setStartLine(classStartLine);
+        classInfo.setEndLine(classEndLine);
 
         if (node.getSuperclassType() != null) {
             String sup = stripTypeArguments(node.getSuperclassType().toString());
@@ -169,6 +175,7 @@ public class EclipseJdtCodeParser implements CodeParser {
                 methodDecl.getBody().accept(bodyVisitor);
             }
             methodInfo.setCyclomaticComplexity(bodyVisitor.getCyclomaticComplexity());
+            methodInfo.setMaxNestingDepth(bodyVisitor.getMaxNestingDepth());
 
             classInfo.getMethods().add(methodInfo);
         }
@@ -177,7 +184,7 @@ public class EclipseJdtCodeParser implements CodeParser {
 
         for (BodyDeclaration bd : (List<BodyDeclaration>) node.bodyDeclarations()) {
             if (bd instanceof TypeDeclaration) {
-                parseTypeDeclaration((TypeDeclaration) bd, cu, packagePrefix, nestedBinary, results);
+                parseTypeDeclaration((TypeDeclaration) bd, cu, packagePrefix, nestedBinary, results, filePath);
             }
         }
     }
@@ -222,6 +229,8 @@ public class EclipseJdtCodeParser implements CodeParser {
         private final ClassInfo classInfo;
         private final MethodInfo methodInfo;
         private int decisionPoints = 0;
+        private int currentNestingDepth = 0;
+        private int maxNestingDepth = 0;
 
         private MethodBodyVisitor(Set<String> fieldNames, ClassInfo classInfo, MethodInfo methodInfo) {
             this.fieldNames = fieldNames;
@@ -233,34 +242,93 @@ public class EclipseJdtCodeParser implements CodeParser {
             return 1 + decisionPoints;
         }
 
+        int getMaxNestingDepth() {
+            return maxNestingDepth;
+        }
+
+        private void enterNesting() {
+            currentNestingDepth++;
+            if (currentNestingDepth > maxNestingDepth) {
+                maxNestingDepth = currentNestingDepth;
+            }
+        }
+
+        private void exitNesting() {
+            currentNestingDepth--;
+            if (currentNestingDepth < 0) {
+                currentNestingDepth = 0;
+            }
+        }
+
         @Override
         public boolean visit(IfStatement node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(IfStatement node) {
+            exitNesting();
         }
 
         @Override
         public boolean visit(ForStatement node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(ForStatement node) {
+            exitNesting();
         }
 
         @Override
         public boolean visit(EnhancedForStatement node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(EnhancedForStatement node) {
+            exitNesting();
         }
 
         @Override
         public boolean visit(WhileStatement node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(WhileStatement node) {
+            exitNesting();
         }
 
         @Override
         public boolean visit(DoStatement node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(DoStatement node) {
+            exitNesting();
+        }
+
+        @Override
+        public boolean visit(SwitchStatement node) {
+            enterNesting();
+            return true;
+        }
+
+        @Override
+        public void endVisit(SwitchStatement node) {
+            exitNesting();
         }
 
         @Override
@@ -274,13 +342,25 @@ public class EclipseJdtCodeParser implements CodeParser {
         @Override
         public boolean visit(CatchClause node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(CatchClause node) {
+            exitNesting();
         }
 
         @Override
         public boolean visit(ConditionalExpression node) {
             decisionPoints++;
+            enterNesting();
             return true;
+        }
+
+        @Override
+        public void endVisit(ConditionalExpression node) {
+            exitNesting();
         }
 
         @Override

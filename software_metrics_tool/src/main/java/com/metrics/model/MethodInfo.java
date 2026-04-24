@@ -17,6 +17,7 @@ public class MethodInfo {
     private int endLine;
     private int loc; // 代码行数
     private int cyclomaticComplexity; // 圈复杂度
+    private int maxNestingDepth;
     
     // 方法内部调用的其他方法 (用于计算RFC, LCOM等)
     private List<String> methodCalls;
@@ -47,6 +48,9 @@ public class MethodInfo {
     
     public int getCyclomaticComplexity() { return cyclomaticComplexity; }
     public void setCyclomaticComplexity(int cyclomaticComplexity) { this.cyclomaticComplexity = cyclomaticComplexity; }
+
+    public int getMaxNestingDepth() { return maxNestingDepth; }
+    public void setMaxNestingDepth(int maxNestingDepth) { this.maxNestingDepth = maxNestingDepth; }
 
     public List<String> getParameters() { return parameters; }
     public List<String> getMethodCalls() { return methodCalls; }

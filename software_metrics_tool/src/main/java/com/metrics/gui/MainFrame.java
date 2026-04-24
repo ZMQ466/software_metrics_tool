@@ -9,6 +9,7 @@ import com.metrics.design.UseCasePlantUmlAnalyzer;
 import com.metrics.design.UCPCalculator;
 import com.metrics.design.UCPResult;
 import com.metrics.model.ClassInfo;
+import com.metrics.model.MethodInfo;
 import com.metrics.model.ProjectMetricsResult;
 import com.metrics.model.UCPInput;
 import com.metrics.modules.CKLkMetricsCalculator;
@@ -56,9 +57,19 @@ public class MainFrame extends JFrame {
     private JLabel statusLabel;
     private JCheckBox ckMetricsCheckBox;
     private JCheckBox lkMetricsCheckBox;
-    private JCheckBox traditionalMetricsCheckBox;
 
     private List<ClassInfo> lastAnalyzedClasses = Collections.emptyList();
+
+    private JPanel traditionalCodeMetricsPanel;
+    private JTextField traditionalSourcePathField;
+    private JButton traditionalBrowseButton;
+    private JButton traditionalAnalyzeButton;
+    private JButton traditionalAiAnalyzeButton;
+    private JComboBox<String> traditionalClassSelectorCombo;
+    private JEditorPane traditionalDetailPane;
+    private JLabel traditionalSummaryLabel;
+    private JLabel traditionalStatusLabel;
+    private List<ClassInfo> lastTraditionalClasses = Collections.emptyList();
 
     private JPanel designMetricsPanel;
     private JButton calculateUcpButton;
@@ -117,7 +128,10 @@ public class MainFrame extends JFrame {
         tabbedPane.setBackground(PANEL_BG);
 
         initCodeMetricsPanel();
-        tabbedPane.addTab("面向对象与代码度量", codeMetricsPanel);
+        tabbedPane.addTab("面向对象度量", codeMetricsPanel);
+
+        initTraditionalCodeMetricsPanel();
+        tabbedPane.addTab("传统代码度量", traditionalCodeMetricsPanel);
 
         initDesignMetricsPanel();
         initClassDiagramPanel();
@@ -265,14 +279,12 @@ public class MainFrame extends JFrame {
                 new EmptyBorder(8, 14, 8, 14)));
         ckMetricsCheckBox = new JCheckBox("CK 度量集", true);
         lkMetricsCheckBox = new JCheckBox("LK 度量集", true);
-        traditionalMetricsCheckBox = new JCheckBox("代码行 / 圈复杂度", true);
-        for (JCheckBox cb : new JCheckBox[] { ckMetricsCheckBox, lkMetricsCheckBox, traditionalMetricsCheckBox }) {
+        for (JCheckBox cb : new JCheckBox[] { ckMetricsCheckBox, lkMetricsCheckBox }) {
             cb.setOpaque(false);
             cb.setForeground(new Color(0x4338ca));
         }
         bottomPanel.add(ckMetricsCheckBox);
         bottomPanel.add(lkMetricsCheckBox);
-        bottomPanel.add(traditionalMetricsCheckBox);
         codeMetricsPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         ActionListener metricVisibilityListener = e -> {
@@ -282,7 +294,120 @@ public class MainFrame extends JFrame {
         };
         ckMetricsCheckBox.addActionListener(metricVisibilityListener);
         lkMetricsCheckBox.addActionListener(metricVisibilityListener);
-        traditionalMetricsCheckBox.addActionListener(metricVisibilityListener);
+    }
+
+    private void initTraditionalCodeMetricsPanel() {
+        traditionalCodeMetricsPanel = new JPanel(new BorderLayout(12, 12));
+        traditionalCodeMetricsPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
+        traditionalCodeMetricsPanel.setBackground(PANEL_BG);
+
+        JPanel north = new JPanel();
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        north.setOpaque(false);
+
+        JPanel pathRow = new JPanel(new BorderLayout(10, 0));
+        pathRow.setOpaque(false);
+        JLabel pathLbl = new JLabel("源码目录");
+        pathLbl.setForeground(MUTED);
+        pathLbl.setFont(pathLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        pathRow.add(pathLbl, BorderLayout.WEST);
+
+        traditionalSourcePathField = new JTextField();
+        traditionalSourcePathField.setFont(traditionalSourcePathField.getFont().deriveFont(Font.PLAIN, 12.5f));
+        traditionalSourcePathField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
+                new EmptyBorder(6, 10, 6, 10)));
+        pathRow.add(traditionalSourcePathField, BorderLayout.CENTER);
+
+        JPanel pathActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pathActions.setOpaque(false);
+        traditionalBrowseButton = styledButton("浏览…", false);
+        traditionalBrowseButton.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                traditionalSourcePathField.setText(chooser.getSelectedFile().getAbsolutePath());
+            }
+        });
+        traditionalAnalyzeButton = styledButton("开始分析", true);
+        traditionalAnalyzeButton.addActionListener(e -> performTraditionalCodeAnalysis());
+        traditionalAiAnalyzeButton = styledButton("智能分析", false);
+        traditionalAiAnalyzeButton.addActionListener(e -> performAiTraditionalCodeAnalysis());
+        pathActions.add(traditionalBrowseButton);
+        pathActions.add(traditionalAnalyzeButton);
+        pathActions.add(traditionalAiAnalyzeButton);
+        pathRow.add(pathActions, BorderLayout.EAST);
+        north.add(pathRow);
+        north.add(Box.createVerticalStrut(10));
+
+        JPanel summaryRow = new JPanel(new BorderLayout());
+        summaryRow.setOpaque(false);
+        traditionalSummaryLabel = new JLabel(defaultTraditionalSummaryHtml());
+        traditionalSummaryLabel.setOpaque(true);
+        traditionalSummaryLabel.setBackground(Color.WHITE);
+        traditionalSummaryLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        traditionalSummaryLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 4, ACCENT),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xfca5a5)),
+                        BorderFactory.createCompoundBorder(
+                                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
+                                new EmptyBorder(16, 20, 16, 20)))));
+        summaryRow.add(traditionalSummaryLabel, BorderLayout.CENTER);
+        north.add(summaryRow);
+
+        north.add(Box.createVerticalStrut(8));
+        JPanel statusRow = new JPanel(new BorderLayout());
+        statusRow.setOpaque(false);
+        traditionalStatusLabel = new JLabel("<html><div style='text-align:center;color:#64748b'>请选择源码目录后点击「开始分析」</div></html>");
+        traditionalStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        traditionalStatusLabel.setFont(traditionalStatusLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        statusRow.add(traditionalStatusLabel, BorderLayout.CENTER);
+        north.add(statusRow);
+
+        traditionalCodeMetricsPanel.add(north, BorderLayout.NORTH);
+
+        JPanel center = new JPanel(new BorderLayout(0, 10));
+        center.setOpaque(false);
+
+        JPanel selectorCard = new JPanel(new BorderLayout(8, 0));
+        selectorCard.setBackground(new Color(0xfcfcff));
+        selectorCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 3, ACCENT2),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(0xc7d2fe)),
+                        new EmptyBorder(10, 12, 10, 12))));
+        JLabel selLbl = new JLabel("查看类");
+        selLbl.setForeground(ACCENT2);
+        selLbl.setFont(selLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        selectorCard.add(selLbl, BorderLayout.WEST);
+
+        traditionalClassSelectorCombo = new JComboBox<>();
+        traditionalClassSelectorCombo.setFont(traditionalClassSelectorCombo.getFont().deriveFont(Font.PLAIN, 12.5f));
+        traditionalClassSelectorCombo.setEnabled(false);
+        traditionalClassSelectorCombo.addActionListener(e -> {
+            if (traditionalClassSelectorCombo.getSelectedIndex() >= 0) {
+                refreshSelectedTraditionalClassDetail();
+            }
+        });
+        selectorCard.add(traditionalClassSelectorCombo, BorderLayout.CENTER);
+        center.add(selectorCard, BorderLayout.NORTH);
+
+        traditionalDetailPane = new JEditorPane();
+        traditionalDetailPane.setEditable(false);
+        traditionalDetailPane.setContentType("text/html");
+        traditionalDetailPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        traditionalDetailPane.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        traditionalDetailPane.setBorder(new EmptyBorder(4, 4, 4, 4));
+        traditionalDetailPane.setText(emptyDetailHtml("尚未执行分析", "选择源码目录并点击「开始分析」后，在此查看单个类与方法的传统代码度量。"));
+        JScrollPane detailScroll = new JScrollPane(traditionalDetailPane);
+        detailScroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(3, 0, 0, 0, new Color(0xfda4af)),
+                BorderFactory.createLineBorder(new Color(0xcbd5e1))));
+        detailScroll.getViewport().setBackground(Color.WHITE);
+        center.add(detailScroll, BorderLayout.CENTER);
+
+        traditionalCodeMetricsPanel.add(center, BorderLayout.CENTER);
     }
 
     private static JButton styledButton(String text, boolean primary) {
@@ -687,7 +812,6 @@ public class MainFrame extends JFrame {
         manager.setParser(new EclipseJdtCodeParser());
         /* 始终计算全部指标；下方复选框仅控制展示 */
         manager.registerCalculator(new CKLkMetricsCalculator());
-        manager.registerCalculator(new TraditionalMetricsCalculator());
 
         try {
             ProjectMetricsResult result = manager.runAnalysis(path);
@@ -709,10 +833,7 @@ public class MainFrame extends JFrame {
         sorted.sort(Comparator.comparing(ClassInfo::getQualifiedName, String.CASE_INSENSITIVE_ORDER));
         lastAnalyzedClasses = sorted;
 
-        projectSummaryLabel.setText(summaryHtml(
-                formatDouble(result.getTotalLoc()),
-                formatDouble(result.getAvgCyclomaticComplexity()),
-                sorted.size()));
+        projectSummaryLabel.setText(summaryHtmlOo(sorted.size()));
 
         statusLabel.setForeground(new Color(0x047857));
         statusLabel.setText("<html><div style='text-align:center;color:#047857'>分析完成 · 共 <b>" + sorted.size()
@@ -741,8 +862,82 @@ public class MainFrame extends JFrame {
                 c,
                 ckMetricsCheckBox.isSelected(),
                 lkMetricsCheckBox.isSelected(),
-                traditionalMetricsCheckBox.isSelected()));
+                false));
         classDetailPane.setCaretPosition(0);
+    }
+
+    private void performTraditionalCodeAnalysis() {
+        String path = traditionalSourcePathField.getText();
+        if (path == null || path.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "请选择源码目录", "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        traditionalClassSelectorCombo.setEnabled(false);
+        traditionalStatusLabel.setForeground(MUTED);
+        traditionalStatusLabel.setText("<html><div style='text-align:center;color:#0e7490'>正在解析与度量…</div></html>");
+        traditionalSummaryLabel.setText(summaryHtmlLoading());
+        traditionalDetailPane.setText(emptyDetailHtml("正在分析", escapeHtml(path)));
+
+        MetricsManager manager = new MetricsManager();
+        manager.setParser(new EclipseJdtCodeParser());
+        manager.registerCalculator(new TraditionalMetricsCalculator());
+
+        try {
+            ProjectMetricsResult result = manager.runAnalysis(path);
+            applyTraditionalCodeAnalysisResult(result);
+        } catch (Exception ex) {
+            lastTraditionalClasses = Collections.emptyList();
+            traditionalClassSelectorCombo.removeAllItems();
+            traditionalClassSelectorCombo.setEnabled(false);
+            traditionalStatusLabel.setForeground(new Color(0xb91c1c));
+            traditionalStatusLabel.setText("<html><div style='text-align:center;color:#b91c1c'>分析失败，请检查路径或依赖后重试</div></html>");
+            traditionalSummaryLabel.setText(summaryHtmlError());
+            traditionalDetailPane.setText(
+                    emptyDetailHtml("分析失败", escapeHtml(ex.getMessage() != null ? ex.getMessage() : ex.toString())));
+        }
+    }
+
+    private void applyTraditionalCodeAnalysisResult(ProjectMetricsResult result) {
+        List<ClassInfo> sorted = new ArrayList<>(result.getClasses());
+        sorted.sort(Comparator.comparing(ClassInfo::getQualifiedName, String.CASE_INSENSITIVE_ORDER));
+        lastTraditionalClasses = sorted;
+
+        traditionalSummaryLabel.setText(summaryHtmlTraditional(
+                String.valueOf((long) result.getTotalLoc()),
+                String.valueOf((long) result.getTotalEffectiveLoc()),
+                String.valueOf((long) result.getTotalBlankLines()),
+                String.valueOf((long) result.getTotalCommentLines()),
+                formatPercent(result.getCommentRate()),
+                formatDouble(result.getAvgCyclomaticComplexity()),
+                formatDouble(result.getAvgMethodLoc()),
+                sorted.size()));
+
+        traditionalStatusLabel.setForeground(new Color(0x047857));
+        traditionalStatusLabel.setText("<html><div style='text-align:center;color:#047857'>分析完成 · 共 <b>" + sorted.size()
+                + "</b> 个类，请在下拉框中选择要查看的类</div></html>");
+
+        traditionalClassSelectorCombo.removeAllItems();
+        for (ClassInfo c : sorted) {
+            traditionalClassSelectorCombo.addItem(c.getQualifiedName());
+        }
+        traditionalClassSelectorCombo.setEnabled(!sorted.isEmpty());
+        if (!sorted.isEmpty()) {
+            traditionalClassSelectorCombo.setSelectedIndex(0);
+        } else {
+            traditionalDetailPane.setText(emptyDetailHtml("无类", "未在目录中解析到任何 Java 类。"));
+        }
+        refreshSelectedTraditionalClassDetail();
+    }
+
+    private void refreshSelectedTraditionalClassDetail() {
+        int idx = traditionalClassSelectorCombo.getSelectedIndex();
+        if (idx < 0 || idx >= lastTraditionalClasses.size()) {
+            return;
+        }
+        ClassInfo c = lastTraditionalClasses.get(idx);
+        traditionalDetailPane.setText(buildTraditionalClassDetailHtml(c));
+        traditionalDetailPane.setCaretPosition(0);
     }
 
     private static String defaultSummaryHtml() {
@@ -750,12 +945,10 @@ public class MainFrame extends JFrame {
                 + "<div style='text-align:center;width:100%;font-family:Segoe UI,Microsoft YaHei UI,sans-serif;color:#475569'>"
                 + "<div style='font-size:13px;color:#64748b;letter-spacing:0.08em;font-weight:700;margin-bottom:10px'>项目概览</div>"
                 + "<div style='font-size:13px;line-height:1.65;color:#64748b;margin-bottom:12px'>"
-                + "尚未执行分析。选择源码目录并点击「开始分析」后，将在此展示统计结果。"
+                + "尚未执行分析。选择源码目录并点击「开始分析」后，将在此展示 CK/LK 度量分析结果。"
                 + "</div>"
                 + "<div style='font-size:12px;line-height:2.2;padding:4px 0'>"
-                + chipStat("总 LOC", "—", "#0369a1", "#e0f2fe")
-                + chipStat("平均圈复杂度", "—", "#5b21b6", "#ede9fe")
-                + chipStat("类数量", "—", "#0f766e", "#ccfbf1")
+                + chipStat("类数量", "—", "#0891b2", "#cffafe")
                 + "</div>"
                 + "</div></body></html>";
     }
@@ -778,14 +971,58 @@ public class MainFrame extends JFrame {
                 + "</div></body></html>";
     }
 
-    private static String summaryHtml(String totalLoc, String avgCc, int classCount) {
+    private static String summaryHtmlOo(int classCount) {
         return "<html><body style='margin:0'>"
                 + "<div style='text-align:center;width:100%;font-family:Segoe UI,Microsoft YaHei UI,sans-serif;color:#334155'>"
                 + "<div style='font-size:13px;color:#64748b;letter-spacing:0.08em;font-weight:700;margin-bottom:12px'>项目概览</div>"
                 + "<div style='font-size:12px;line-height:2.2;padding:4px 0'>"
-                + chipStat("总 LOC", totalLoc, "#0369a1", "#e0f2fe")
-                + chipStat("平均圈复杂度", avgCc, "#5b21b6", "#ede9fe")
-                + chipStat("类数量", String.valueOf(classCount), "#0f766e", "#ccfbf1")
+                + chipStat("类数量", String.valueOf(classCount), "#0891b2", "#cffafe")
+                + "</div>"
+                + "</div></body></html>";
+    }
+
+    private static String defaultTraditionalSummaryHtml() {
+        return "<html><body style='margin:0'>"
+                + "<div style='text-align:center;width:100%;font-family:Segoe UI,Microsoft YaHei UI,sans-serif;color:#475569'>"
+                + "<div style='font-size:13px;color:#64748b;letter-spacing:0.08em;font-weight:700;margin-bottom:10px'>项目概览</div>"
+                + "<div style='font-size:13px;line-height:1.65;color:#64748b;margin-bottom:12px'>"
+                + "尚未执行分析。选择源码目录并点击「开始分析」后，将在此展示传统代码度量统计结果。"
+                + "</div>"
+                + "<div style='font-size:12px;line-height:2.2;padding:4px 0'>"
+                + "<div style='margin:6px 0'>"
+                + chipStatCompact("代码行数 LoC", "—", "#0369a1", "#e0f2fe")
+                + chipStatCompact("有效代码行 ELoC", "—", "#0f766e", "#ccfbf1")
+                + chipStatCompact("空行 Blank", "—", "#64748b", "#f1f5f9")
+                + chipStatCompact("注释行 Comment", "—", "#be123c", "#ffe4e6")
+                + "</div>"
+                + "<div style='margin:6px 0'>"
+                + chipStatCompact("注释率 Comment%", "—", "#9f1239", "#fff1f2")
+                + chipStatCompact("平均圈复杂度 Avg CC", "—", "#5b21b6", "#ede9fe")
+                + chipStatCompact("平均方法长度 Avg LOC", "—", "#0e7490", "#cffafe")
+                + chipStatCompact("类数量 Classes", "—", "#0891b2", "#cffafe")
+                + "</div>"
+                + "</div>"
+                + "</div></body></html>";
+    }
+
+    private static String summaryHtmlTraditional(String totalLoc, String effectiveLoc, String blankLines, String commentLines,
+                                                String commentRate, String avgCc, String avgMethodLoc, int classCount) {
+        return "<html><body style='margin:0'>"
+                + "<div style='text-align:center;width:100%;font-family:Segoe UI,Microsoft YaHei UI,sans-serif;color:#334155'>"
+                + "<div style='font-size:13px;color:#64748b;letter-spacing:0.08em;font-weight:700;margin-bottom:12px'>项目概览</div>"
+                + "<div style='font-size:12px;line-height:2.2;padding:4px 0'>"
+                + "<div style='margin:6px 0'>"
+                + chipStatCompact("代码行数 LoC", totalLoc, "#0369a1", "#e0f2fe")
+                + chipStatCompact("有效代码行 ELoC", effectiveLoc, "#0f766e", "#ccfbf1")
+                + chipStatCompact("空行 Blank", blankLines, "#64748b", "#f1f5f9")
+                + chipStatCompact("注释行 Comment", commentLines, "#be123c", "#ffe4e6")
+                + "</div>"
+                + "<div style='margin:6px 0'>"
+                + chipStatCompact("注释率 Comment%", commentRate, "#9f1239", "#fff1f2")
+                + chipStatCompact("平均圈复杂度 Avg CC", avgCc, "#5b21b6", "#ede9fe")
+                + chipStatCompact("平均方法长度 Avg LOC", avgMethodLoc, "#0e7490", "#cffafe")
+                + chipStatCompact("类数量 Classes", String.valueOf(classCount), "#0891b2", "#cffafe")
+                + "</div>"
                 + "</div>"
                 + "</div></body></html>";
     }
@@ -795,6 +1032,14 @@ public class MainFrame extends JFrame {
         return "<span style='display:inline-block;background:" + bg + ";color:" + fg
                 + ";padding:8px 18px;border-radius:999px;font-size:12px;font-weight:700;"
                 + "margin:6px 28px;vertical-align:middle'>"
+                + "<span style='font-weight:600;opacity:.88'>" + escapeHtml(label) + "</span> "
+                + "<span style='font-weight:800'>" + escapeHtml(value) + "</span></span>";
+    }
+
+    private static String chipStatCompact(String label, String value, String fg, String bg) {
+        return "<span style='display:inline-block;background:" + bg + ";color:" + fg
+                + ";padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;"
+                + "margin:6px 14px;vertical-align:middle'>"
                 + "<span style='font-weight:600;opacity:.88'>" + escapeHtml(label) + "</span> "
                 + "<span style='font-weight:800'>" + escapeHtml(value) + "</span></span>";
     }
@@ -866,6 +1111,32 @@ public class MainFrame extends JFrame {
             }
         }
 
+        if (showTrad) {
+            List<MethodInfo> high = new ArrayList<>();
+            for (MethodInfo m : c.getMethods()) {
+                if (m.getCyclomaticComplexity() >= TraditionalMetricsCalculator.HIGH_COMPLEXITY_THRESHOLD) {
+                    high.add(m);
+                }
+            }
+            sb.append("<p class='sec'>高复杂度方法告警</p>");
+            if (high.isEmpty()) {
+                sb.append("<p class='muted'>未发现高复杂度方法（阈值：CC ≥ ")
+                        .append(TraditionalMetricsCalculator.HIGH_COMPLEXITY_THRESHOLD)
+                        .append("）。</p>");
+            } else {
+                sb.append("<p class='muted'>阈值：CC ≥ ")
+                        .append(TraditionalMetricsCalculator.HIGH_COMPLEXITY_THRESHOLD)
+                        .append("。建议优先拆分/提炼以下方法。</p>");
+                sb.append("<table class='metrics'>");
+                for (MethodInfo m : high) {
+                    sb.append("<tr><td class='k'>").append(escapeHtml(m.getMethodName())).append("</td><td class='v'>")
+                            .append(escapeHtml(formatDouble(m.getCyclomaticComplexity())))
+                            .append("</td></tr>");
+                }
+                sb.append("</table>");
+            }
+        }
+
         boolean showOoInterpret = showCk || showLk;
         if (showOoInterpret) {
             String interp = OOMetricsInterpreter.interpretClass(c, showCk, showLk);
@@ -890,6 +1161,9 @@ public class MainFrame extends JFrame {
         if (key.startsWith("LK_")) {
             return showLk;
         }
+        if (key.startsWith("TRAD_")) {
+            return showTrad;
+        }
         if ("LOC_CLASS".equals(key) || "CC_AVG_CLASS".equals(key)) {
             return showTrad;
         }
@@ -898,6 +1172,106 @@ public class MainFrame extends JFrame {
 
     private static String formatDouble(double v) {
         return String.format(Locale.ROOT, "%.4f", v);
+    }
+
+    private static String formatPercent(double v) {
+        return String.format(Locale.ROOT, "%.2f%%", v * 100.0);
+    }
+
+    private static String buildTraditionalClassDetailHtml(ClassInfo c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><head><meta charset='UTF-8'>");
+        sb.append(detailStyles());
+        sb.append("</head><body>");
+
+        sb.append("<h2>").append(escapeHtml(c.getClassName())).append("</h2>");
+        sb.append("<p class='sub'>").append(escapeHtml(c.getQualifiedName())).append("</p>");
+
+        sb.append("<p class='sec'>指标说明</p>");
+        sb.append("<p class='muted'>")
+                .append("CC：Cyclomatic Complexity. LOC：Lines of Code. Nest：Nesting Depth. Params：Parameter Count.")
+                .append("</p>");
+
+        sb.append("<p class='sec'>类级指标</p>");
+        sb.append("<table class='metrics'>");
+        appendMetricRow(sb, "TRAD_CLASS_LOC", c);
+        appendMetricRow(sb, "TRAD_CLASS_ELOC", c);
+        appendMetricRow(sb, "TRAD_CLASS_BLANK", c);
+        appendMetricRow(sb, "TRAD_CLASS_COMMENT", c);
+        appendMetricRow(sb, "CC_AVG_CLASS", c);
+        appendMetricRow(sb, "TRAD_METHOD_LOC_AVG_CLASS", c);
+        appendMetricRow(sb, "TRAD_CC_MAX_CLASS", c);
+        appendMetricRow(sb, "TRAD_MAX_NESTING_CLASS", c);
+        appendMetricRow(sb, "TRAD_HIGH_CC_METHOD_COUNT_CLASS", c);
+        sb.append("</table>");
+
+        sb.append("<p class='sec'>方法级指标</p>");
+        if (c.getMethods().isEmpty()) {
+            sb.append("<p class='muted'>未解析到方法。</p>");
+        } else {
+            sb.append("<table class='metrics'>");
+            sb.append("<tr>")
+                    .append("<td class='k'>方法 / Method</td>")
+                    .append("<td class='v'>长度 LOC · 复杂度 CC · 嵌套 Nest · 参数 Params</td>")
+                    .append("</tr>");
+            for (MethodInfo m : c.getMethods()) {
+                sb.append("<tr><td class='k'>").append(escapeHtml(m.getMethodName())).append("</td><td class='v'>")
+                        .append(escapeHtml(String.valueOf(Math.max(m.getLoc(), 0)))).append(" · ")
+                        .append(escapeHtml(String.valueOf(Math.max(m.getCyclomaticComplexity(), 1)))).append(" · ")
+                        .append(escapeHtml(String.valueOf(Math.max(m.getMaxNestingDepth(), 0)))).append(" · ")
+                        .append(escapeHtml(String.valueOf(m.getParameters() != null ? m.getParameters().size() : 0)))
+                        .append("</td></tr>");
+            }
+            sb.append("</table>");
+        }
+
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private static void appendMetricRow(StringBuilder sb, String key, ClassInfo c) {
+        if (!c.getMetrics().containsKey(key)) {
+            return;
+        }
+        sb.append("<tr><td class='k'>").append(escapeHtml(traditionalMetricTitleZh(key)))
+                .append("<div style='margin-top:2px;color:#64748b;font-size:11px;font-family:Segoe UI,Microsoft YaHei UI,sans-serif'>")
+                .append(escapeHtml(traditionalMetricExplainZh(key)))
+                .append("</div>")
+                .append("</td><td class='v'>")
+                .append(escapeHtml(formatDouble(c.getMetrics().get(key))))
+                .append("</td></tr>");
+    }
+
+    private static String traditionalMetricTitleZh(String key) {
+        return switch (key) {
+            case "LOC_CLASS" -> "类代码行数 LoC / Class LoC";
+            case "TRAD_CLASS_LOC" -> "类代码行数 LoC / Class LoC";
+            case "TRAD_CLASS_ELOC" -> "类有效代码行 ELoC / Class ELoC";
+            case "TRAD_CLASS_BLANK" -> "类空行 Blank / Class Blank";
+            case "TRAD_CLASS_COMMENT" -> "类注释行 Comment / Class Comment";
+            case "CC_AVG_CLASS" -> "类平均圈复杂度 CC / Avg CC";
+            case "TRAD_METHOD_LOC_AVG_CLASS" -> "类平均方法长度 LOC / Avg Method LOC";
+            case "TRAD_CC_MAX_CLASS" -> "类最大圈复杂度 CC / Max CC";
+            case "TRAD_MAX_NESTING_CLASS" -> "类最大嵌套深度 / Max Nesting";
+            case "TRAD_HIGH_CC_METHOD_COUNT_CLASS" -> "高复杂度方法数 / High-CC Methods";
+            default -> key;
+        };
+    }
+
+    private static String traditionalMetricExplainZh(String key) {
+        return switch (key) {
+            case "LOC_CLASS" -> "方法 LOC 合计 / Sum of method LOC";
+            case "TRAD_CLASS_LOC" -> "按类范围统计 / Counted by class range";
+            case "TRAD_CLASS_ELOC" -> "类范围内有效代码 / Effective code in class range";
+            case "TRAD_CLASS_BLANK" -> "类范围内空行 / Blank lines in class range";
+            case "TRAD_CLASS_COMMENT" -> "类范围内注释 / Comment lines in class range";
+            case "CC_AVG_CLASS" -> "方法 CC 平均 / Avg method CC";
+            case "TRAD_METHOD_LOC_AVG_CLASS" -> "方法 LOC 平均 / Avg method LOC";
+            case "TRAD_CC_MAX_CLASS" -> "方法 CC 最大 / Max method CC";
+            case "TRAD_MAX_NESTING_CLASS" -> "方法 Nest 最大 / Max method nesting";
+            case "TRAD_HIGH_CC_METHOD_COUNT_CLASS" -> "CC 达阈值的方法数 / Methods above threshold";
+            default -> "";
+        };
     }
 
     private static String escapeHtml(String s) {
@@ -1175,6 +1549,20 @@ public class MainFrame extends JFrame {
         runAiAnalysisAsync(prompt, aiAnalyzeCodeButton, reply -> showAiResultDialog("代码度量智能分析", reply));
     }
 
+    private void performAiTraditionalCodeAnalysis() {
+        int idx = traditionalClassSelectorCombo.getSelectedIndex();
+        if (idx < 0 || idx >= lastTraditionalClasses.size()) {
+            JOptionPane.showMessageDialog(this,
+                    "请先执行传统代码度量分析并选择一个类。",
+                    "提示",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        ClassInfo c = lastTraditionalClasses.get(idx);
+        String prompt = buildTraditionalCodePagePrompt(c);
+        runAiAnalysisAsync(prompt, traditionalAiAnalyzeButton, reply -> showAiResultDialog("传统代码度量智能分析", reply));
+    }
+
     private void performAiDesignAnalysis() {
         try {
             RequirementDesignMetricsEngine.FunctionPointInput fpInput = new RequirementDesignMetricsEngine.FunctionPointInput(
@@ -1303,6 +1691,24 @@ public class MainFrame extends JFrame {
         sb.append("LCOM=").append(metricValue(m, "CK_LCOM")).append("\n");
         sb.append("LCOM4=").append(metricValue(m, "LK_LCOM_NORM")).append("\n");
         sb.append("LCOM_HS=").append(metricValue(m, "LK_COHESION")).append("\n\n");
+        appendCommonAiRequirements(sb);
+        return sb.toString();
+    }
+
+    private String buildTraditionalCodePagePrompt(ClassInfo c) {
+        Map<String, Double> m = c.getMetrics();
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据以下传统代码度量输出指标，分析该类代码质量，并给出3条简洁的改进建议。\n");
+        sb.append("类名: ").append(c.getQualifiedName()).append("\n");
+        sb.append("LOC=").append(metricValue(m, "TRAD_CLASS_LOC")).append("\n");
+        sb.append("ELoC=").append(metricValue(m, "TRAD_CLASS_ELOC")).append("\n");
+        sb.append("BlankLines=").append(metricValue(m, "TRAD_CLASS_BLANK")).append("\n");
+        sb.append("CommentLines=").append(metricValue(m, "TRAD_CLASS_COMMENT")).append("\n");
+        sb.append("AvgCC=").append(metricValue(m, "CC_AVG_CLASS")).append("\n");
+        sb.append("AvgMethodLOC=").append(metricValue(m, "TRAD_METHOD_LOC_AVG_CLASS")).append("\n");
+        sb.append("MaxCC=").append(metricValue(m, "TRAD_CC_MAX_CLASS")).append("\n");
+        sb.append("MaxNesting=").append(metricValue(m, "TRAD_MAX_NESTING_CLASS")).append("\n");
+        sb.append("HighCCMethodCount=").append(metricValue(m, "TRAD_HIGH_CC_METHOD_COUNT_CLASS")).append("\n\n");
         appendCommonAiRequirements(sb);
         return sb.toString();
     }
