@@ -82,6 +82,7 @@ public class MainFrame extends JFrame {
     private JTextField algorithmicWeightField;
     private JTextField technicalFactorsField;
     private JTextField environmentalFactorsField;
+    private JButton uploadUseCasePlantUmlButton;
     private JButton parseUseCasePlantUmlButton;
     private JTextArea useCasePlantUmlArea;
 
@@ -499,10 +500,14 @@ public class MainFrame extends JFrame {
         useCasePlantScroll.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
         useCasePlantPanel.add(useCasePlantScroll, BorderLayout.CENTER);
 
+        uploadUseCasePlantUmlButton = styledButton("上传 PlantUML 代码", false);
+        uploadUseCasePlantUmlButton.addActionListener(e -> performUploadUseCasePlantUml());
         parseUseCasePlantUmlButton = styledButton("解析PlantUML用例图", false);
         parseUseCasePlantUmlButton.addActionListener(e -> performParseUseCasePlantUml());
         JPanel parseButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         parseButtonPanel.setOpaque(false);
+        parseButtonPanel.add(uploadUseCasePlantUmlButton);
+        parseButtonPanel.add(Box.createHorizontalStrut(8));
         parseButtonPanel.add(parseUseCasePlantUmlButton);
         useCasePlantPanel.add(parseButtonPanel, BorderLayout.SOUTH);
 
@@ -1080,6 +1085,26 @@ public class MainFrame extends JFrame {
             String text = Files.readString(path, StandardCharsets.UTF_8);
             plantUmlCodeArea.setText(text);
             plantUmlCodeArea.setCaretPosition(0);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to read file: " + ex.getMessage(),
+                    "Read Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void performUploadUseCasePlantUml() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select PlantUML file");
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        Path path = chooser.getSelectedFile().toPath();
+        try {
+            String text = Files.readString(path, StandardCharsets.UTF_8);
+            useCasePlantUmlArea.setText(text);
+            useCasePlantUmlArea.setCaretPosition(0);
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this,
                     "Failed to read file: " + ex.getMessage(),
