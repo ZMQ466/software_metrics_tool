@@ -18,6 +18,7 @@ import com.metrics.modules.TraditionalMetricsCalculator;
 import com.metrics.parser.EclipseJdtCodeParser;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionListener;
@@ -38,13 +39,27 @@ import java.util.function.Consumer;
  */
 public class MainFrame extends JFrame {
 
-    private static final Color ACCENT = new Color(0x0d9488);
-    /** 辅色：靛紫，用于描边、次按钮与部分数据强调 */
-    private static final Color ACCENT2 = new Color(0x6366f1);
+    private static final Color PRIMARY = new Color(0x6ea8ff);
+    private static final Color PRIMARY_DARK = new Color(0x3b82f6);
+    private static final Color PRIMARY_SOFT = new Color(0xdbeafe);
+    private static final Color PRIMARY_SOFT_2 = new Color(0xeaf2ff);
+    private static final Color APP_BG = new Color(0xf5f9ff);
+    private static final Color CARD_BG = Color.WHITE;
+    private static final Color BORDER = new Color(0xd6e4ff);
     private static final Color MUTED = new Color(0x64748b);
-    private static final Color PANEL_BG = new Color(0xeff6ff);
+    private static final Color TEXT = new Color(0x16324f);
+    private static final Color SHADOW = new Color(0x9fbbe8);
+    private static final Color ON_PRIMARY = Color.WHITE;
+
+    private static final Font FONT_BODY = new Font("Microsoft YaHei UI", Font.PLAIN, 14);
+    private static final Font FONT_BODY_LG = new Font("Microsoft YaHei UI", Font.PLAIN, 15);
+    private static final Font FONT_TITLE = new Font("Microsoft YaHei UI", Font.BOLD, 18);
+    private static final Font FONT_TITLE_LG = new Font("Microsoft YaHei UI", Font.BOLD, 22);
+    private static final Font FONT_MONO = new Font(Font.MONOSPACED, Font.PLAIN, 13);
 
     private JTabbedPane tabbedPane;
+    private JPanel navBar;
+    private JButton[] navButtons;
 
     private JPanel codeMetricsPanel;
     private JTextField sourcePathField;
@@ -112,10 +127,11 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("软件度量自动化工具");
-        setSize(960, 700);
-        setMinimumSize(new Dimension(820, 560));
+        setSize(1280, 960);
+        setMinimumSize(new Dimension(1280, 960));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        getContentPane().setBackground(APP_BG);
 
         initComponents();
     }
@@ -123,9 +139,11 @@ public class MainFrame extends JFrame {
     private void initComponents() {
         installTabbedPaneChrome();
 
+      //  navBar = buildTopNavigation();
         tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(tabbedPane.getFont().deriveFont(Font.PLAIN, 13f));
-        tabbedPane.setBackground(PANEL_BG);
+        tabbedPane.setFont(FONT_BODY);
+        tabbedPane.setBackground(APP_BG);
+        tabbedPane.setBorder(new EmptyBorder(12, 0, 0, 0));
 
         initCodeMetricsPanel();
         tabbedPane.addTab("面向对象度量", codeMetricsPanel);
@@ -140,49 +158,123 @@ public class MainFrame extends JFrame {
         tabbedPane.addTab("控制流图度量", controlFlowPanel);
         tabbedPane.addTab("用例点与功能点度量", designMetricsPanel);
 
-        add(tabbedPane, BorderLayout.CENTER);
+        JPanel root = new JPanel(new BorderLayout(0, 14));
+        root.setBackground(APP_BG);
+        root.setBorder(new EmptyBorder(16, 16, 16, 16));
+     //   root.add(navBar, BorderLayout.NORTH);
+        root.add(tabbedPane, BorderLayout.CENTER);
+        add(root, BorderLayout.CENTER);
+
+        tabbedPane.addChangeListener(e -> syncNavSelection(tabbedPane.getSelectedIndex()));
+        syncNavSelection(0);
     }
 
     private void installTabbedPaneChrome() {
-        UIManager.put("TabbedPane.background", new Color(0xe2e8f0));
-        UIManager.put("TabbedPane.unselectedBackground", new Color(0xf1f5f9));
+        UIManager.put("TabbedPane.background", APP_BG);
+        UIManager.put("TabbedPane.unselectedBackground", PRIMARY_SOFT_2);
         UIManager.put("TabbedPane.selected", Color.WHITE);
-        UIManager.put("TabbedPane.contentAreaColor", PANEL_BG);
-        UIManager.put("TabbedPane.foreground", new Color(0x334155));
-        UIManager.put("TabbedPane.selectedForeground", new Color(0x0f172a));
+        UIManager.put("TabbedPane.contentAreaColor", APP_BG);
+        UIManager.put("TabbedPane.foreground", TEXT);
+        UIManager.put("TabbedPane.selectedForeground", PRIMARY_DARK);
+        UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
         Font tabFont = UIManager.getFont("TabbedPane.font");
         if (tabFont == null) {
             tabFont = UIManager.getFont("Label.font");
         }
         if (tabFont != null) {
-            UIManager.put("TabbedPane.font", tabFont.deriveFont(Font.PLAIN, 13f));
+            UIManager.put("TabbedPane.font", FONT_BODY_LG);
+        }
+    }
+
+    private JPanel buildTopNavigation() {
+        JPanel hero = createCardPanel(new BorderLayout(12, 8), BORDER, PRIMARY);
+        hero.setBorder(BorderFactory.createCompoundBorder(createShadowBorder(18), hero.getBorder()));
+
+        // JPanel titleBox = new JPanel();
+        // titleBox.setOpaque(false);
+        // titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
+        // JLabel title = new JLabel("软件度量工具");
+        // title.setFont(FONT_TITLE_LG);
+        // title.setForeground(TEXT);
+        // JLabel subtitle = new JLabel("Material Design 3 · 浅蓝配色 · 圆角卡片导航");
+        // subtitle.setFont(FONT_BODY_LG);
+        // subtitle.setForeground(MUTED);
+        // titleBox.add(title);
+        // titleBox.add(Box.createVerticalStrut(3));
+        // titleBox.add(subtitle);
+        // hero.add(titleBox, BorderLayout.WEST);
+
+        JPanel navRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        navRow.setOpaque(false);
+        navButtons = new JButton[] {
+                navPill("面向对象度量", 0),
+                navPill("传统代码度量", 1),
+                navPill("类图度量", 2),
+                navPill("控制流图度量", 3),
+                navPill("用例点与功能点度量", 4)
+        };
+        for (JButton button : navButtons) {
+            navRow.add(button);
+        }
+        hero.add(navRow, BorderLayout.EAST);
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+        wrapper.add(hero, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    private JButton navPill(String text, int index) {
+        JButton button = styledButton(text, false);
+        button.setFont(FONT_BODY_LG);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                createShadowBorder(12),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER),
+                        new EmptyBorder(10, 16, 10, 16))));
+        button.addActionListener(e -> tabbedPane.setSelectedIndex(index));
+        button.putClientProperty("navIndex", index);
+        return button;
+    }
+
+    private void syncNavSelection(int selectedIndex) {
+        if (navButtons == null) {
+            return;
+        }
+        for (int i = 0; i < navButtons.length; i++) {
+            JButton button = navButtons[i];
+            boolean selected = i == selectedIndex;
+            button.setBackground(selected ? PRIMARY_DARK : CARD_BG);
+            button.setForeground(selected ? ON_PRIMARY : TEXT);
+            button.setBorder(BorderFactory.createCompoundBorder(
+                    createShadowBorder(selected ? 18 : 10),
+                    BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(selected ? PRIMARY_DARK : BORDER),
+                            new EmptyBorder(10, 16, 10, 16))));
         }
     }
 
     private void initCodeMetricsPanel() {
-        codeMetricsPanel = new JPanel(new BorderLayout(12, 12));
-        codeMetricsPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
-        codeMetricsPanel.setBackground(PANEL_BG);
+        codeMetricsPanel = new JPanel(new BorderLayout(16, 16));
+        codeMetricsPanel.setBorder(new EmptyBorder(16, 4, 4, 4));
+        codeMetricsPanel.setBackground(APP_BG);
 
         JPanel north = new JPanel();
         north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
         north.setOpaque(false);
 
-        JPanel pathRow = new JPanel(new BorderLayout(10, 0));
+        JPanel pathRow = createCardPanel(new BorderLayout(12, 0), BORDER, PRIMARY);
         pathRow.setOpaque(false);
         JLabel pathLbl = new JLabel("源码目录");
         pathLbl.setForeground(MUTED);
-        pathLbl.setFont(pathLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        pathLbl.setFont(FONT_BODY_LG);
         pathRow.add(pathLbl, BorderLayout.WEST);
 
         sourcePathField = new JTextField();
-        sourcePathField.setFont(sourcePathField.getFont().deriveFont(Font.PLAIN, 12.5f));
-        sourcePathField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
-                new EmptyBorder(6, 10, 6, 10)));
+        styleTextField(sourcePathField);
         pathRow.add(sourcePathField, BorderLayout.CENTER);
 
-        JPanel pathActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel pathActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         pathActions.setOpaque(false);
         browseButton = styledButton("浏览…", false);
         browseButton.addActionListener(e -> {
@@ -203,18 +295,18 @@ public class MainFrame extends JFrame {
         north.add(pathRow);
         north.add(Box.createVerticalStrut(10));
 
-        JPanel summaryRow = new JPanel(new BorderLayout());
+        JPanel summaryRow = createCardPanel(new BorderLayout(), BORDER, PRIMARY);
         summaryRow.setOpaque(false);
         projectSummaryLabel = new JLabel(defaultSummaryHtml());
         projectSummaryLabel.setOpaque(true);
-        projectSummaryLabel.setBackground(Color.WHITE);
+        projectSummaryLabel.setBackground(CARD_BG);
         projectSummaryLabel.setHorizontalAlignment(SwingConstants.CENTER);
         projectSummaryLabel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 4, ACCENT),
+                BorderFactory.createMatteBorder(0, 0, 0, 4, PRIMARY),
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xe9d5ff)),
+                        BorderFactory.createMatteBorder(0, 0, 0, 3, PRIMARY_SOFT),
                         BorderFactory.createCompoundBorder(
-                                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
+                                BorderFactory.createLineBorder(BORDER),
                                 new EmptyBorder(16, 20, 16, 20)))));
         summaryRow.add(projectSummaryLabel, BorderLayout.CENTER);
         north.add(summaryRow);
@@ -224,29 +316,23 @@ public class MainFrame extends JFrame {
         statusRow.setOpaque(false);
         statusLabel = new JLabel("<html><div style='text-align:center;color:#64748b'>请选择源码目录后点击「开始分析」</div></html>");
         statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        statusLabel.setFont(FONT_BODY);
         statusRow.add(statusLabel, BorderLayout.CENTER);
         north.add(statusRow);
 
         codeMetricsPanel.add(north, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new BorderLayout(0, 10));
+        JPanel center = new JPanel(new BorderLayout(0, 12));
         center.setOpaque(false);
 
-        JPanel selectorCard = new JPanel(new BorderLayout(8, 0));
-        selectorCard.setBackground(new Color(0xfcfcff));
-        selectorCard.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 3, ACCENT2),
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(0xc7d2fe)),
-                        new EmptyBorder(10, 12, 10, 12))));
+        JPanel selectorCard = createCardPanel(new BorderLayout(8, 0), BORDER, PRIMARY);
         JLabel selLbl = new JLabel("查看类");
-        selLbl.setForeground(ACCENT2);
-        selLbl.setFont(selLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        selLbl.setForeground(TEXT);
+        selLbl.setFont(FONT_BODY);
         selectorCard.add(selLbl, BorderLayout.WEST);
 
         classSelectorCombo = new JComboBox<>();
-        classSelectorCombo.setFont(classSelectorCombo.getFont().deriveFont(Font.PLAIN, 12.5f));
+        classSelectorCombo.setFont(FONT_BODY_LG);
         classSelectorCombo.setEnabled(false);
         classSelectorCombo.addActionListener(e -> {
             if (classSelectorCombo.getSelectedIndex() >= 0) {
@@ -260,22 +346,22 @@ public class MainFrame extends JFrame {
         classDetailPane.setEditable(false);
         classDetailPane.setContentType("text/html");
         classDetailPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
-        classDetailPane.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        classDetailPane.setFont(FONT_BODY);
         classDetailPane.setBorder(new EmptyBorder(4, 4, 4, 4));
         classDetailPane.setText(emptyDetailHtml("尚未执行分析", "选择源码目录并点击「开始分析」后，在此查看单个类的度量与解释。"));
         JScrollPane detailScroll = new JScrollPane(classDetailPane);
         detailScroll.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(3, 0, 0, 0, new Color(0x99f6e4)),
-                BorderFactory.createLineBorder(new Color(0xcbd5e1))));
+                BorderFactory.createMatteBorder(3, 0, 0, 0, PRIMARY),
+                BorderFactory.createLineBorder(BORDER)));
         detailScroll.getViewport().setBackground(Color.WHITE);
         center.add(detailScroll, BorderLayout.CENTER);
 
         codeMetricsPanel.add(center, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 8));
-        bottomPanel.setBackground(new Color(0xf5f3ff));
+        bottomPanel.setBackground(PRIMARY_SOFT_2);
         bottomPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xe9d5ff)),
+                BorderFactory.createLineBorder(PRIMARY_SOFT),
                 new EmptyBorder(8, 14, 8, 14)));
         ckMetricsCheckBox = new JCheckBox("CK 度量集", true);
         lkMetricsCheckBox = new JCheckBox("LK 度量集", true);
@@ -297,29 +383,26 @@ public class MainFrame extends JFrame {
     }
 
     private void initTraditionalCodeMetricsPanel() {
-        traditionalCodeMetricsPanel = new JPanel(new BorderLayout(12, 12));
-        traditionalCodeMetricsPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
-        traditionalCodeMetricsPanel.setBackground(PANEL_BG);
+        traditionalCodeMetricsPanel = new JPanel(new BorderLayout(16, 16));
+        traditionalCodeMetricsPanel.setBorder(new EmptyBorder(16, 4, 4, 4));
+        traditionalCodeMetricsPanel.setBackground(APP_BG);
 
         JPanel north = new JPanel();
         north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
         north.setOpaque(false);
 
-        JPanel pathRow = new JPanel(new BorderLayout(10, 0));
+        JPanel pathRow = createCardPanel(new BorderLayout(12, 0), BORDER, PRIMARY);
         pathRow.setOpaque(false);
         JLabel pathLbl = new JLabel("源码目录");
         pathLbl.setForeground(MUTED);
-        pathLbl.setFont(pathLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        pathLbl.setFont(FONT_BODY_LG);
         pathRow.add(pathLbl, BorderLayout.WEST);
 
         traditionalSourcePathField = new JTextField();
-        traditionalSourcePathField.setFont(traditionalSourcePathField.getFont().deriveFont(Font.PLAIN, 12.5f));
-        traditionalSourcePathField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
-                new EmptyBorder(6, 10, 6, 10)));
+        styleTextField(traditionalSourcePathField);
         pathRow.add(traditionalSourcePathField, BorderLayout.CENTER);
 
-        JPanel pathActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel pathActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         pathActions.setOpaque(false);
         traditionalBrowseButton = styledButton("浏览…", false);
         traditionalBrowseButton.addActionListener(e -> {
@@ -340,18 +423,18 @@ public class MainFrame extends JFrame {
         north.add(pathRow);
         north.add(Box.createVerticalStrut(10));
 
-        JPanel summaryRow = new JPanel(new BorderLayout());
+        JPanel summaryRow = createCardPanel(new BorderLayout(), BORDER, PRIMARY);
         summaryRow.setOpaque(false);
         traditionalSummaryLabel = new JLabel(defaultTraditionalSummaryHtml());
         traditionalSummaryLabel.setOpaque(true);
-        traditionalSummaryLabel.setBackground(Color.WHITE);
+        traditionalSummaryLabel.setBackground(CARD_BG);
         traditionalSummaryLabel.setHorizontalAlignment(SwingConstants.CENTER);
         traditionalSummaryLabel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 4, ACCENT),
+                BorderFactory.createMatteBorder(0, 0, 0, 4, PRIMARY),
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xfca5a5)),
+                        BorderFactory.createMatteBorder(0, 0, 0, 3, PRIMARY_SOFT),
                         BorderFactory.createCompoundBorder(
-                                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
+                                BorderFactory.createLineBorder(BORDER),
                                 new EmptyBorder(16, 20, 16, 20)))));
         summaryRow.add(traditionalSummaryLabel, BorderLayout.CENTER);
         north.add(summaryRow);
@@ -359,31 +442,26 @@ public class MainFrame extends JFrame {
         north.add(Box.createVerticalStrut(8));
         JPanel statusRow = new JPanel(new BorderLayout());
         statusRow.setOpaque(false);
-        traditionalStatusLabel = new JLabel("<html><div style='text-align:center;color:#64748b'>请选择源码目录后点击「开始分析」</div></html>");
+        traditionalStatusLabel = new JLabel(
+                "<html><div style='text-align:center;color:#64748b'>请选择源码目录后点击「开始分析」</div></html>");
         traditionalStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        traditionalStatusLabel.setFont(traditionalStatusLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        traditionalStatusLabel.setFont(FONT_BODY);
         statusRow.add(traditionalStatusLabel, BorderLayout.CENTER);
         north.add(statusRow);
 
         traditionalCodeMetricsPanel.add(north, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new BorderLayout(0, 10));
+        JPanel center = new JPanel(new BorderLayout(0, 12));
         center.setOpaque(false);
 
-        JPanel selectorCard = new JPanel(new BorderLayout(8, 0));
-        selectorCard.setBackground(new Color(0xfcfcff));
-        selectorCard.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 3, ACCENT2),
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(0xc7d2fe)),
-                        new EmptyBorder(10, 12, 10, 12))));
+        JPanel selectorCard = createCardPanel(new BorderLayout(8, 0), BORDER, PRIMARY);
         JLabel selLbl = new JLabel("查看类");
-        selLbl.setForeground(ACCENT2);
-        selLbl.setFont(selLbl.getFont().deriveFont(Font.PLAIN, 12.5f));
+        selLbl.setForeground(TEXT);
+        selLbl.setFont(FONT_BODY);
         selectorCard.add(selLbl, BorderLayout.WEST);
 
         traditionalClassSelectorCombo = new JComboBox<>();
-        traditionalClassSelectorCombo.setFont(traditionalClassSelectorCombo.getFont().deriveFont(Font.PLAIN, 12.5f));
+        traditionalClassSelectorCombo.setFont(FONT_BODY_LG);
         traditionalClassSelectorCombo.setEnabled(false);
         traditionalClassSelectorCombo.addActionListener(e -> {
             if (traditionalClassSelectorCombo.getSelectedIndex() >= 0) {
@@ -397,13 +475,13 @@ public class MainFrame extends JFrame {
         traditionalDetailPane.setEditable(false);
         traditionalDetailPane.setContentType("text/html");
         traditionalDetailPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
-        traditionalDetailPane.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        traditionalDetailPane.setFont(FONT_BODY);
         traditionalDetailPane.setBorder(new EmptyBorder(4, 4, 4, 4));
         traditionalDetailPane.setText(emptyDetailHtml("尚未执行分析", "选择源码目录并点击「开始分析」后，在此查看单个类与方法的传统代码度量。"));
         JScrollPane detailScroll = new JScrollPane(traditionalDetailPane);
         detailScroll.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(3, 0, 0, 0, new Color(0xfda4af)),
-                BorderFactory.createLineBorder(new Color(0xcbd5e1))));
+                BorderFactory.createMatteBorder(3, 0, 0, 0, PRIMARY),
+                BorderFactory.createLineBorder(BORDER)));
         detailScroll.getViewport().setBackground(Color.WHITE);
         center.add(detailScroll, BorderLayout.CENTER);
 
@@ -412,160 +490,148 @@ public class MainFrame extends JFrame {
 
     private static JButton styledButton(String text, boolean primary) {
         JButton b = new JButton(text);
-        b.setFont(b.getFont().deriveFont(Font.PLAIN, 12.5f));
+        b.setFont(FONT_BODY_LG);
         b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setContentAreaFilled(true);
+        b.setMargin(new Insets(10, 18, 10, 18));
         if (primary) {
-            b.setBackground(ACCENT);
-            b.setForeground(Color.WHITE);
-            b.setOpaque(true);
-            b.setBorderPainted(false);
-            b.setBorder(new EmptyBorder(8, 16, 8, 16));
+            b.setBackground(PRIMARY);
+            b.setForeground(ON_PRIMARY);
         } else {
-            b.setBackground(new Color(0xf8fafc));
-            b.setForeground(ACCENT2);
-            b.setOpaque(true);
-            b.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(0xa5b4fc)),
-                    new EmptyBorder(7, 14, 7, 14)));
+            b.setBackground(CARD_BG);
+            b.setForeground(TEXT);
         }
+        b.setBorder(BorderFactory.createCompoundBorder(
+                createShadowBorder(primary ? 20 : 12),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(primary ? PRIMARY_DARK : BORDER),
+                        new EmptyBorder(10, 18, 10, 18))));
+        b.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                b.setBackground(primary ? PRIMARY_DARK : PRIMARY_SOFT_2);
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                b.setBackground(primary ? PRIMARY : CARD_BG);
+            }
+        });
         return b;
     }
 
     private void initDesignMetricsPanel() {
-        designMetricsPanel = new JPanel(new BorderLayout(10, 10));
-        designMetricsPanel.setBorder(new EmptyBorder(8, 12, 10, 12));
-        designMetricsPanel.setBackground(PANEL_BG);
+        designMetricsPanel = new JPanel(new BorderLayout(16, 16));
+        designMetricsPanel.setBorder(new EmptyBorder(16, 4, 4, 4));
+        designMetricsPanel.setBackground(APP_BG);
 
-        // 使用 GridBagLayout 实现 6列，比例 1:2:1:2:1:2
+        // 使用 GridBagLayout 实现真正的 3列布局，每列占权重 1.0
         JPanel inputPanel = new JPanel(new GridBagLayout());
-        inputPanel.setBackground(new Color(0xfffbeb));
+        inputPanel.setBackground(CARD_BG);
         inputPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 0, 3, new Color(0xfbbf24)),
+                createShadowBorder(18),
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(0xfde68a)),
-                        new EmptyBorder(8, 10, 8, 10))));
+                        BorderFactory.createMatteBorder(0, 0, 0, 3, PRIMARY),
+                        new EmptyBorder(16, 18, 16, 18))));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        // 列宽度比例：1,2,1,2,1,2
-        double[] weights = { 1.0, 2.0, 1.0, 2.0, 1.0, 2.0 };
+        gbc.weightx = 1.0 / 3.0;
 
         int row = 0;
 
-        // ========== 第1行 ==========
+        JLabel designTitle = new JLabel("用例点与功能点度量");
+        designTitle.setFont(FONT_TITLE_LG);
+        designTitle.setForeground(TEXT);
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 3;
+        inputPanel.add(designTitle, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // ========== 第1行：EI, EO, EQ ==========
         // 列0: EI
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.weightx = weights[0];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "EI", fpEiField = new JTextField("0"));
-        // 列1: 输入框
+        fpEiField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "EI", fpEiField);
+        // 列1: EO
         gbc.gridx = 1;
-        gbc.weightx = weights[1];
-        inputPanel.add(fpEiField, gbc);
-        // 列2: EO
+        gbc.gridy = row;
+        fpEoField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "EO", fpEoField);
+        // 列2: EQ
         gbc.gridx = 2;
-        gbc.weightx = weights[2];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "EO", fpEoField = new JTextField("0"));
-        // 列3: 输入框
-        gbc.gridx = 3;
-        gbc.weightx = weights[3];
-        inputPanel.add(fpEoField, gbc);
-        // 列4: EQ
-        gbc.gridx = 4;
-        gbc.weightx = weights[4];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "EQ", fpEqField = new JTextField("0"));
-        // 列5: 输入框
-        gbc.gridx = 5;
-        gbc.weightx = weights[5];
-        inputPanel.add(fpEqField, gbc);
+        gbc.gridy = row;
+        fpEqField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "EQ", fpEqField);
         row++;
 
-        // ========== 第2行 ==========
+        // ========== 第2行：ILF, EIF, GSC总分 ==========
         // 列0: ILF
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.weightx = weights[0];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "ILF", fpIlfField = new JTextField("0"));
+        fpIlfField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "ILF", fpIlfField);
+        // 列1: EIF
         gbc.gridx = 1;
-        gbc.weightx = weights[1];
-        inputPanel.add(fpIlfField, gbc);
-        // 列2: EIF
+        gbc.gridy = row;
+        fpEifField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "EIF", fpEifField);
+        // 列2: GSC总分
         gbc.gridx = 2;
-        gbc.weightx = weights[2];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "EIF", fpEifField = new JTextField("0"));
-        gbc.gridx = 3;
-        gbc.weightx = weights[3];
-        inputPanel.add(fpEifField, gbc);
-        // 列4: GSC总分
-        gbc.gridx = 4;
-        gbc.weightx = weights[4];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "GSC总分", fpGscField = new JTextField("0"));
-        gbc.gridx = 5;
-        gbc.weightx = weights[5];
-        inputPanel.add(fpGscField, gbc);
+        gbc.gridy = row;
+        fpGscField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "GSC总分", fpGscField);
         row++;
 
-        // ========== 第3行 ==========
+        // ========== 第3行：简单用例, 平均用例, 复杂用例 ==========
         // 列0: 简单用例
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.weightx = weights[0];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "简单用例", simpleUseCasesField = new JTextField("0"));
+        simpleUseCasesField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "简单用例", simpleUseCasesField);
+        // 列1: 平均用例
         gbc.gridx = 1;
-        gbc.weightx = weights[1];
-        inputPanel.add(simpleUseCasesField, gbc);
-        // 列2: 平均用例
+        gbc.gridy = row;
+        averageUseCasesField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "平均用例", averageUseCasesField);
+        // 列2: 复杂用例
         gbc.gridx = 2;
-        gbc.weightx = weights[2];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "平均用例", averageUseCasesField = new JTextField("0"));
-        gbc.gridx = 3;
-        gbc.weightx = weights[3];
-        inputPanel.add(averageUseCasesField, gbc);
-        // 列4: 复杂用例
-        gbc.gridx = 4;
-        gbc.weightx = weights[4];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "复杂用例", complexUseCasesField = new JTextField("0"));
-        gbc.gridx = 5;
-        gbc.weightx = weights[5];
-        inputPanel.add(complexUseCasesField, gbc);
+        gbc.gridy = row;
+        complexUseCasesField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "复杂用例", complexUseCasesField);
         row++;
 
-        // ========== 第4行 ==========
+        // ========== 第4行：简单参与者, 平均参与者, 复杂参与者 ==========
         // 列0: 简单参与者
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.weightx = weights[0];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "简单参与者", simpleActorsField = new JTextField("0"));
+        simpleActorsField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "简单参与者", simpleActorsField);
+        // 列1: 平均参与者
         gbc.gridx = 1;
-        gbc.weightx = weights[1];
-        inputPanel.add(simpleActorsField, gbc);
-        // 列2: 平均参与者
+        gbc.gridy = row;
+        averageActorsField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "平均参与者", averageActorsField);
+        // 列2: 复杂参与者
         gbc.gridx = 2;
-        gbc.weightx = weights[2];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "平均参与者", averageActorsField = new JTextField("0"));
-        gbc.gridx = 3;
-        gbc.weightx = weights[3];
-        inputPanel.add(averageActorsField, gbc);
-        // 列4: 复杂参与者
-        gbc.gridx = 4;
-        gbc.weightx = weights[4];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "复杂参与者", complexActorsField = new JTextField("0"));
-        gbc.gridx = 5;
-        gbc.weightx = weights[5];
-        inputPanel.add(complexActorsField, gbc);
+        gbc.gridy = row;
+        complexActorsField = new JTextField("0");
+        addLabeledFieldRow(inputPanel, gbc, "复杂参与者", complexActorsField);
         row++;
 
-        // ========== 第5行：特征点权重（跨两列，但为了保持布局，放在第5行） ==========
+        // ========== 第5行：特征点权重 ==========
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.weightx = weights[0];
-        addLabeledFieldCompactGrid(inputPanel, gbc, "特征点权重", algorithmicWeightField = new JTextField("1.00"));
-        gbc.gridx = 1;
-        gbc.weightx = weights[1];
-        inputPanel.add(algorithmicWeightField, gbc);
-        // 列2-5 留空或放其他
+        algorithmicWeightField = new JTextField("1.00");
+        addLabeledFieldRow(inputPanel, gbc, "特征点权重", algorithmicWeightField);
+        // 列1、2留空
         row++;
 
         // ========== 第6行：技术因子（独占一行，跨6列） ==========
@@ -576,10 +642,11 @@ public class MainFrame extends JFrame {
         JPanel techPanel = new JPanel(new BorderLayout(8, 0));
         techPanel.setOpaque(false);
         JLabel techLabel = new JLabel("技术因子 (13项, 0-5):");
-        techLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-        techLabel.setPreferredSize(new Dimension(140, 26));
+        techLabel.setFont(FONT_BODY_LG);
+        techLabel.setPreferredSize(new Dimension(150, 30));
         techPanel.add(techLabel, BorderLayout.WEST);
         technicalFactorsField = new JTextField("0,0,0,0,0,0,0,0,0,0,0,0,0");
+        styleTextField(technicalFactorsField);
         techPanel.add(technicalFactorsField, BorderLayout.CENTER);
         inputPanel.add(techPanel, gbc);
         gbc.gridwidth = 1;
@@ -592,10 +659,11 @@ public class MainFrame extends JFrame {
         JPanel envPanel = new JPanel(new BorderLayout(8, 0));
         envPanel.setOpaque(false);
         JLabel envLabel = new JLabel("环境因子 (8项, 0-5):");
-        envLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-        envLabel.setPreferredSize(new Dimension(140, 26));
+        envLabel.setFont(FONT_BODY_LG);
+        envLabel.setPreferredSize(new Dimension(150, 30));
         envPanel.add(envLabel, BorderLayout.WEST);
         environmentalFactorsField = new JTextField("0,0,0,0,0,0,0,0");
+        styleTextField(environmentalFactorsField);
         envPanel.add(environmentalFactorsField, BorderLayout.CENTER);
         inputPanel.add(envPanel, gbc);
         gbc.gridwidth = 1;
@@ -612,11 +680,11 @@ public class MainFrame extends JFrame {
         JPanel useCasePlantPanel = new JPanel(new BorderLayout(8, 8));
         useCasePlantPanel.setOpaque(false);
         JLabel useCasePlantLabel = new JLabel("PlantUML 用例图输入（可选，解析后自动填充用例/参与者分类）");
-        useCasePlantLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        useCasePlantLabel.setFont(FONT_BODY_LG);
         useCasePlantPanel.add(useCasePlantLabel, BorderLayout.NORTH);
 
         useCasePlantUmlArea = new JTextArea(5, 20);
-        useCasePlantUmlArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        styleTextArea(useCasePlantUmlArea, true);
         useCasePlantUmlArea.setLineWrap(true);
         useCasePlantUmlArea.setWrapStyleWord(true);
         useCasePlantUmlArea.setText("@startuml\n"
@@ -628,7 +696,7 @@ public class MainFrame extends JFrame {
                 + "Admin --> (Manage Order)\n"
                 + "@enduml\n");
         JScrollPane useCasePlantScroll = new JScrollPane(useCasePlantUmlArea);
-        useCasePlantScroll.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
+        useCasePlantScroll.setBorder(BorderFactory.createLineBorder(BORDER));
         useCasePlantPanel.add(useCasePlantScroll, BorderLayout.CENTER);
 
         uploadUseCasePlantUmlButton = styledButton("上传 PlantUML 代码", false);
@@ -653,7 +721,7 @@ public class MainFrame extends JFrame {
         gbc.gridy = row;
         gbc.gridwidth = 6;
         gbc.anchor = GridBagConstraints.EAST;
-        calculateUcpButton = styledButton("计算 FP / UCP / 特征点", true);
+        calculateUcpButton = floatingActionButton("计算 FP / UCP / 特征点", PRIMARY_DARK, ON_PRIMARY);
         calculateUcpButton.addActionListener(e -> performDesignMetricsCalculation());
         aiAnalyzeDesignButton = styledButton("智能分析", false);
         aiAnalyzeDesignButton.addActionListener(e -> performAiDesignAnalysis());
@@ -668,12 +736,13 @@ public class MainFrame extends JFrame {
         // 结果区域（保持不变）
         designResultArea = new JTextArea();
         designResultArea.setEditable(false);
-        designResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        styleTextArea(designResultArea, true);
         designResultArea.setText("点击 \"计算 FP / UCP / 特征点\" 以获得三类需求/设计度量结果\n");
-        designResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
-        designResultArea.setBackground(Color.WHITE);
+        designResultArea.setBorder(new EmptyBorder(14, 16, 14, 16));
         JScrollPane scrollPane = new JScrollPane(designResultArea);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
+        scrollPane.setBorder(BorderFactory.createCompoundBorder(
+                createShadowBorder(16),
+                BorderFactory.createLineBorder(BORDER)));
         designMetricsPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
@@ -681,93 +750,130 @@ public class MainFrame extends JFrame {
     private void addLabeledFieldCompactGrid(JPanel panel, GridBagConstraints gbc,
             String labelText, JTextField field) {
         JLabel label = new JLabel(labelText);
-        label.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        label.setFont(FONT_BODY);
+        label.setForeground(TEXT);
+        styleTextField(field);
         panel.add(label, gbc);
     }
 
-    private void initClassDiagramPanel() {
-        classDiagramPanel = new JPanel(new BorderLayout(10, 10));
-        classDiagramPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
-        classDiagramPanel.setBackground(PANEL_BG);
+    // 辅助方法：在 3 列布局中添加标签和输入框的组合
+    private void addLabeledFieldRow(JPanel panel, GridBagConstraints gbc,
+            String labelText, JTextField field) {
+        JPanel cellPanel = new JPanel(new BorderLayout(4, 0));
+        cellPanel.setOpaque(false);
 
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JLabel label = new JLabel(labelText);
+        label.setFont(FONT_BODY);
+        label.setForeground(TEXT);
+        label.setPreferredSize(new Dimension(60, 26));
+        cellPanel.add(label, BorderLayout.WEST);
+
+        styleTextField(field);
+        cellPanel.add(field, BorderLayout.CENTER);
+
+        panel.add(cellPanel, gbc);
+    }
+
+    private void initClassDiagramPanel() {
+        classDiagramPanel = new JPanel(new BorderLayout(16, 16));
+        classDiagramPanel.setBorder(new EmptyBorder(16, 4, 4, 4));
+        classDiagramPanel.setBackground(APP_BG);
+
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         actionPanel.setOpaque(false);
         uploadPlantUmlButton = styledButton("上传 PlantUML 代码", false);
         uploadPlantUmlButton.addActionListener(e -> performUploadPlantUml());
-        calculateClassDiagramButton = styledButton("解析 + CK/LK 度量分析", true);
+        calculateClassDiagramButton = floatingActionButton("解析 + CK/LK 度量分析", PRIMARY, ON_PRIMARY);
         calculateClassDiagramButton.addActionListener(e -> performClassDiagramCalculation());
         aiAnalyzeClassDiagramButton = styledButton("智能分析", false);
         aiAnalyzeClassDiagramButton.addActionListener(e -> performAiClassDiagramAnalysis());
         actionPanel.add(uploadPlantUmlButton);
         actionPanel.add(calculateClassDiagramButton);
         actionPanel.add(aiAnalyzeClassDiagramButton);
-        classDiagramPanel.add(actionPanel, BorderLayout.NORTH);
+        JPanel headerCard = createMaterialCard(new BorderLayout());
+        JLabel title = new JLabel("类图度量分析");
+        title.setFont(FONT_TITLE_LG);
+        title.setForeground(TEXT);
+        headerCard.add(title, BorderLayout.WEST);
+        headerCard.add(actionPanel, BorderLayout.EAST);
+        classDiagramPanel.add(headerCard, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 12, 0));
         centerPanel.setOpaque(false);
 
         plantUmlCodeArea = new JTextArea();
-        plantUmlCodeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        plantUmlCodeArea.setBorder(new EmptyBorder(10, 12, 10, 12));
-        plantUmlCodeArea.setBackground(Color.WHITE);
+        styleTextArea(plantUmlCodeArea, true);
+        plantUmlCodeArea.setBorder(new EmptyBorder(14, 16, 14, 16));
         plantUmlCodeArea
                 .setText("@startuml\nclass User {\n  +id: Long\n  +name: String\n  +getName(): String\n}\n@enduml\n");
         JScrollPane inputScroll = new JScrollPane(plantUmlCodeArea);
-        inputScroll.setBorder(BorderFactory.createTitledBorder("PlantUML Class Diagram"));
+        inputScroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(BorderFactory.createLineBorder(BORDER), "PlantUML Class Diagram"),
+                new EmptyBorder(4, 4, 4, 4)));
         centerPanel.add(inputScroll);
 
         classDiagramResultArea = new JTextArea();
         classDiagramResultArea.setEditable(false);
-        classDiagramResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        classDiagramResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
-        classDiagramResultArea.setBackground(Color.WHITE);
+        styleTextArea(classDiagramResultArea, true);
+        classDiagramResultArea.setBorder(new EmptyBorder(14, 16, 14, 16));
         classDiagramResultArea.setText("上传 PlantUML 代码，点击 解析 + CK/LK 分析 以获得结果.\n");
         JScrollPane resultScroll = new JScrollPane(classDiagramResultArea);
-        resultScroll.setBorder(BorderFactory.createTitledBorder("CK/LK Metrics Result"));
+        resultScroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(BorderFactory.createLineBorder(BORDER), "CK/LK Metrics Result"),
+                new EmptyBorder(4, 4, 4, 4)));
         centerPanel.add(resultScroll);
 
         classDiagramPanel.add(centerPanel, BorderLayout.CENTER);
     }
 
     private void initControlFlowPanel() {
-        controlFlowPanel = new JPanel(new BorderLayout(10, 10));
-        controlFlowPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
-        controlFlowPanel.setBackground(PANEL_BG);
+        controlFlowPanel = new JPanel(new BorderLayout(16, 16));
+        controlFlowPanel.setBorder(new EmptyBorder(16, 4, 4, 4));
+        controlFlowPanel.setBackground(APP_BG);
 
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         actionPanel.setOpaque(false);
         uploadControlFlowPlantUmlButton = styledButton("上传 PlantUML", false);
         uploadControlFlowPlantUmlButton.addActionListener(e -> performUploadControlFlowPlantUml());
-        calculateControlFlowButton = styledButton("解析 + 控制流度量分析", true);
+        calculateControlFlowButton = floatingActionButton("解析 + 控制流度量分析", PRIMARY, ON_PRIMARY);
         calculateControlFlowButton.addActionListener(e -> performControlFlowCalculation());
         aiAnalyzeControlFlowButton = styledButton("智能分析", false);
         aiAnalyzeControlFlowButton.addActionListener(e -> performAiControlFlowAnalysis());
         actionPanel.add(uploadControlFlowPlantUmlButton);
         actionPanel.add(calculateControlFlowButton);
         actionPanel.add(aiAnalyzeControlFlowButton);
-        controlFlowPanel.add(actionPanel, BorderLayout.NORTH);
+        JPanel headerCard = createMaterialCard(new BorderLayout());
+        JLabel title = new JLabel("控制流图度量分析");
+        title.setFont(FONT_TITLE_LG);
+        title.setForeground(TEXT);
+        headerCard.add(title, BorderLayout.WEST);
+        headerCard.add(actionPanel, BorderLayout.EAST);
+        controlFlowPanel.add(headerCard, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 12, 0));
         centerPanel.setOpaque(false);
 
         controlFlowPlantUmlArea = new JTextArea();
-        controlFlowPlantUmlArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        controlFlowPlantUmlArea.setBorder(new EmptyBorder(10, 12, 10, 12));
-        controlFlowPlantUmlArea.setBackground(Color.WHITE);
+        styleTextArea(controlFlowPlantUmlArea, true);
+        controlFlowPlantUmlArea.setBorder(new EmptyBorder(14, 16, 14, 16));
         controlFlowPlantUmlArea.setText(
                 "@startuml\nstart\nif (x > 0?) then (yes)\n  :work;\nelse (no)\n  :skip;\nendif\nstop\n@enduml\n");
         JScrollPane inputScroll = new JScrollPane(controlFlowPlantUmlArea);
-        inputScroll.setBorder(BorderFactory.createTitledBorder("PlantUML Flowchart"));
+        inputScroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(BorderFactory.createLineBorder(BORDER), "PlantUML Flowchart"),
+                new EmptyBorder(4, 4, 4, 4)));
         centerPanel.add(inputScroll);
 
         controlFlowResultArea = new JTextArea();
         controlFlowResultArea.setEditable(false);
-        controlFlowResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        controlFlowResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
-        controlFlowResultArea.setBackground(Color.WHITE);
+        styleTextArea(controlFlowResultArea, true);
+        controlFlowResultArea.setBorder(new EmptyBorder(14, 16, 14, 16));
         controlFlowResultArea.setText("上传 PlantUML 代码，点击“解析 + 控制流度量分析”以获得结果\n");
         JScrollPane resultScroll = new JScrollPane(controlFlowResultArea);
-        resultScroll.setBorder(BorderFactory.createTitledBorder("Control-Flow Metrics Result"));
+        resultScroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(BorderFactory.createLineBorder(BORDER),
+                        "Control-Flow Metrics Result"),
+                new EmptyBorder(4, 4, 4, 4)));
         centerPanel.add(resultScroll);
 
         controlFlowPanel.add(centerPanel, BorderLayout.CENTER);
@@ -776,23 +882,118 @@ public class MainFrame extends JFrame {
     private static void addLabeledField(JPanel grid, String label, JTextField field) {
         JLabel l = new JLabel(label);
         l.setForeground(MUTED);
-        l.setFont(l.getFont().deriveFont(Font.PLAIN, 12f));
+        l.setFont(FONT_BODY);
         grid.add(l);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
-                new EmptyBorder(6, 8, 6, 8)));
+        styleTextField(field);
         grid.add(field);
     }
 
     private static void addLabeledFieldCompact(JPanel grid, String label, JTextField field) {
         JLabel l = new JLabel(label);
         l.setForeground(MUTED);
-        l.setFont(l.getFont().deriveFont(Font.PLAIN, 11.5f));
+        l.setFont(FONT_BODY.deriveFont(Font.PLAIN, 12f));
         grid.add(l);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xe2e8f0)),
-                new EmptyBorder(3, 8, 3, 8)));
+        styleTextField(field);
         grid.add(field);
+    }
+
+    private static JPanel createCardPanel(LayoutManager layout, Color borderColor, Color accentStripe) {
+        JPanel panel = new JPanel(layout);
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 3, accentStripe),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(borderColor),
+                        new EmptyBorder(10, 12, 10, 12))));
+        return panel;
+    }
+
+    private static JPanel createMaterialCard(LayoutManager layout) {
+        JPanel panel = new JPanel(layout) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 28, 28);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        panel.setOpaque(false);
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                createShadowBorder(16),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER),
+                        new EmptyBorder(14, 16, 14, 16))));
+        return panel;
+    }
+
+    private static Border createShadowBorder(int alpha) {
+        return new javax.swing.border.AbstractBorder() {
+            @Override
+            public Insets getBorderInsets(Component c) {
+                return new Insets(0, 0, 6, 0);
+            }
+
+            @Override
+            public Insets getBorderInsets(Component c, Insets insets) {
+                insets.top = 0;
+                insets.left = 0;
+                insets.bottom = 6;
+                insets.right = 0;
+                return insets;
+            }
+
+            @Override
+            public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(SHADOW.getRed(), SHADOW.getGreen(), SHADOW.getBlue(), Math.max(36, alpha)));
+                g2.fillRoundRect(x + 4, y + 4, width - 8, height - 8, 24, 24);
+                g2.dispose();
+            }
+        };
+    }
+
+    private static JButton floatingActionButton(String text, Color background, Color foreground) {
+        JButton button = styledButton(text, true);
+        button.setBackground(background);
+        button.setForeground(foreground);
+        button.setFont(FONT_BODY_LG);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                createShadowBorder(20),
+                BorderFactory.createEmptyBorder(12, 20, 12, 20)));
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                button.setBackground(background.brighter());
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                button.setBackground(background);
+            }
+        });
+        return button;
+    }
+
+    private static void styleTextField(JTextField field) {
+        field.setFont(FONT_BODY);
+        field.setForeground(TEXT);
+        field.setBackground(Color.WHITE);
+        field.setCaretColor(TEXT);
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER),
+                new EmptyBorder(6, 10, 6, 10)));
+    }
+
+    private static void styleTextArea(JTextArea textArea, boolean monospaced) {
+        textArea.setFont(monospaced ? FONT_MONO : FONT_BODY);
+        textArea.setForeground(TEXT);
+        textArea.setBackground(Color.WHITE);
+        textArea.setCaretColor(TEXT);
     }
 
     private void performCodeAnalysis() {
@@ -891,7 +1092,8 @@ public class MainFrame extends JFrame {
             traditionalClassSelectorCombo.removeAllItems();
             traditionalClassSelectorCombo.setEnabled(false);
             traditionalStatusLabel.setForeground(new Color(0xb91c1c));
-            traditionalStatusLabel.setText("<html><div style='text-align:center;color:#b91c1c'>分析失败，请检查路径或依赖后重试</div></html>");
+            traditionalStatusLabel
+                    .setText("<html><div style='text-align:center;color:#b91c1c'>分析失败，请检查路径或依赖后重试</div></html>");
             traditionalSummaryLabel.setText(summaryHtmlError());
             traditionalDetailPane.setText(
                     emptyDetailHtml("分析失败", escapeHtml(ex.getMessage() != null ? ex.getMessage() : ex.toString())));
@@ -1005,8 +1207,9 @@ public class MainFrame extends JFrame {
                 + "</div></body></html>";
     }
 
-    private static String summaryHtmlTraditional(String totalLoc, String effectiveLoc, String blankLines, String commentLines,
-                                                String commentRate, String avgCc, String avgMethodLoc, int classCount) {
+    private static String summaryHtmlTraditional(String totalLoc, String effectiveLoc, String blankLines,
+            String commentLines,
+            String commentRate, String avgCc, String avgMethodLoc, int classCount) {
         return "<html><body style='margin:0'>"
                 + "<div style='text-align:center;width:100%;font-family:Segoe UI,Microsoft YaHei UI,sans-serif;color:#334155'>"
                 + "<div style='font-size:13px;color:#64748b;letter-spacing:0.08em;font-weight:700;margin-bottom:12px'>项目概览</div>"
