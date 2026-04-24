@@ -1,6 +1,7 @@
 package com.metrics.gui;
 
 import com.metrics.core.MetricsManager;
+import com.metrics.design.ControlFlowPlantUmlAnalyzer;
 import com.metrics.design.DeepSeekClient;
 import com.metrics.design.PlantUmlClassDiagramAnalyzer;
 import com.metrics.design.RequirementDesignMetricsEngine;
@@ -89,6 +90,13 @@ public class MainFrame extends JFrame {
     private JTextArea plantUmlCodeArea;
     private JTextArea classDiagramResultArea;
 
+    private JPanel controlFlowPanel;
+    private JButton uploadControlFlowPlantUmlButton;
+    private JButton calculateControlFlowButton;
+    private JButton aiAnalyzeControlFlowButton;
+    private JTextArea controlFlowPlantUmlArea;
+    private JTextArea controlFlowResultArea;
+
     private final DeepSeekClient deepSeekClient = new DeepSeekClient();
 
     public MainFrame() {
@@ -113,7 +121,9 @@ public class MainFrame extends JFrame {
 
         initDesignMetricsPanel();
         initClassDiagramPanel();
+        initControlFlowPanel();
         tabbedPane.addTab("类图度量", classDiagramPanel);
+        tabbedPane.addTab("控制流图度量", controlFlowPanel);
         tabbedPane.addTab("用例点与功能点度量", designMetricsPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
@@ -594,6 +604,50 @@ public class MainFrame extends JFrame {
         classDiagramPanel.add(centerPanel, BorderLayout.CENTER);
     }
 
+    private void initControlFlowPanel() {
+        controlFlowPanel = new JPanel(new BorderLayout(10, 10));
+        controlFlowPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
+        controlFlowPanel.setBackground(PANEL_BG);
+
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        actionPanel.setOpaque(false);
+        uploadControlFlowPlantUmlButton = styledButton("上传 PlantUML", false);
+        uploadControlFlowPlantUmlButton.addActionListener(e -> performUploadControlFlowPlantUml());
+        calculateControlFlowButton = styledButton("解析 + 控制流度量分析", true);
+        calculateControlFlowButton.addActionListener(e -> performControlFlowCalculation());
+        aiAnalyzeControlFlowButton = styledButton("智能分析", false);
+        aiAnalyzeControlFlowButton.addActionListener(e -> performAiControlFlowAnalysis());
+        actionPanel.add(uploadControlFlowPlantUmlButton);
+        actionPanel.add(calculateControlFlowButton);
+        actionPanel.add(aiAnalyzeControlFlowButton);
+        controlFlowPanel.add(actionPanel, BorderLayout.NORTH);
+
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        centerPanel.setOpaque(false);
+
+        controlFlowPlantUmlArea = new JTextArea();
+        controlFlowPlantUmlArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        controlFlowPlantUmlArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+        controlFlowPlantUmlArea.setBackground(Color.WHITE);
+        controlFlowPlantUmlArea.setText(
+                "@startuml\nstart\nif (x > 0?) then (yes)\n  :work;\nelse (no)\n  :skip;\nendif\nstop\n@enduml\n");
+        JScrollPane inputScroll = new JScrollPane(controlFlowPlantUmlArea);
+        inputScroll.setBorder(BorderFactory.createTitledBorder("PlantUML Flowchart"));
+        centerPanel.add(inputScroll);
+
+        controlFlowResultArea = new JTextArea();
+        controlFlowResultArea.setEditable(false);
+        controlFlowResultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        controlFlowResultArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+        controlFlowResultArea.setBackground(Color.WHITE);
+        controlFlowResultArea.setText("上传 PlantUML 代码，点击“解析 + 控制流度量分析”以获得结果\n");
+        JScrollPane resultScroll = new JScrollPane(controlFlowResultArea);
+        resultScroll.setBorder(BorderFactory.createTitledBorder("Control-Flow Metrics Result"));
+        centerPanel.add(resultScroll);
+
+        controlFlowPanel.add(centerPanel, BorderLayout.CENTER);
+    }
+
     private static void addLabeledField(JPanel grid, String label, JTextField field) {
         JLabel l = new JLabel(label);
         l.setForeground(MUTED);
@@ -965,6 +1019,26 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void performUploadControlFlowPlantUml() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select PlantUML file");
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        Path path = chooser.getSelectedFile().toPath();
+        try {
+            String text = Files.readString(path, StandardCharsets.UTF_8);
+            controlFlowPlantUmlArea.setText(text);
+            controlFlowPlantUmlArea.setCaretPosition(0);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to read file: " + ex.getMessage(),
+                    "Read Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void performUploadUseCasePlantUml() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Select PlantUML file");
@@ -1055,6 +1129,38 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void performControlFlowCalculation() {
+        controlFlowResultArea.setText("");
+        String plantUml = controlFlowPlantUmlArea.getText();
+        if (plantUml == null || plantUml.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please paste PlantUML flowchart text first.",
+                    "Input Required",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        try {
+            ControlFlowPlantUmlAnalyzer.Result result = ControlFlowPlantUmlAnalyzer.analyze(plantUml);
+            controlFlowResultArea.append("=== Control-Flow Metrics ===\n");
+            controlFlowResultArea.append("CyclomaticComplexity=" + result.cyclomaticComplexity + "\n");
+            controlFlowResultArea.append("BranchCount=" + result.branchCount + "\n");
+            controlFlowResultArea.append("LoopCount=" + result.loopCount + "\n");
+            controlFlowResultArea.append("RiskLevel=" + result.riskLevel + "\n");
+            controlFlowResultArea.setCaretPosition(0);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this,
+                    ex.getMessage(),
+                    "PlantUML Parse Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to parse PlantUML: " + ex.getMessage(),
+                    "PlantUML Parse Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void performAiCodeAnalysis() {
         int idx = classSelectorCombo.getSelectedIndex();
         if (idx < 0 || idx >= lastAnalyzedClasses.size()) {
@@ -1129,6 +1235,28 @@ public class MainFrame extends JFrame {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
                     "类图分析失败: " + ex.getMessage(),
+                    "错误",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void performAiControlFlowAnalysis() {
+        String plantUml = controlFlowPlantUmlArea.getText();
+        if (plantUml == null || plantUml.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "请先上传或粘贴 PlantUML 控制流图代码。",
+                    "提示",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        try {
+            ControlFlowPlantUmlAnalyzer.Result result = ControlFlowPlantUmlAnalyzer.analyze(plantUml);
+            String prompt = buildControlFlowPagePrompt(result);
+            runAiAnalysisAsync(prompt, aiAnalyzeControlFlowButton, reply -> showAiResultDialog("控制流图度量智能分析", reply));
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "控制流图分析失败: " + ex.getMessage(),
                     "错误",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -1230,6 +1358,17 @@ public class MainFrame extends JFrame {
         sb.append("LCOM(avg)=").append(formatDouble(sumLcom / n)).append("\n");
         sb.append("LCOM4(avg)=").append(formatDouble(sumLkNorm / n)).append("\n");
         sb.append("LCOM_HS(avg)=").append(formatDouble(sumLkHs / n)).append("\n\n");
+        appendCommonAiRequirements(sb);
+        return sb.toString();
+    }
+
+    private String buildControlFlowPagePrompt(ControlFlowPlantUmlAnalyzer.Result result) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据以下控制流图度量结果，分析程序流程设计质量，并给出3条简洁的改进建议。\n");
+        sb.append("CyclomaticComplexity=").append(result.cyclomaticComplexity).append("\n");
+        sb.append("BranchCount=").append(result.branchCount).append("\n");
+        sb.append("LoopCount=").append(result.loopCount).append("\n");
+        sb.append("RiskLevel=").append(result.riskLevel).append("\n\n");
         appendCommonAiRequirements(sb);
         return sb.toString();
     }
