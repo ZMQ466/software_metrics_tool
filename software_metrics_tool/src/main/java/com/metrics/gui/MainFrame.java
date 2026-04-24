@@ -488,13 +488,13 @@ public class MainFrame extends JFrame {
         useCasePlantUmlArea.setLineWrap(true);
         useCasePlantUmlArea.setWrapStyleWord(true);
         useCasePlantUmlArea.setText("@startuml\n"
-            + "left to right direction\n"
-            + "actor User\n"
-            + "actor Admin\n"
-            + "User --> (Login)\n"
-            + "User --> (Search Book)\n"
-            + "Admin --> (Manage Order)\n"
-            + "@enduml\n");
+                + "left to right direction\n"
+                + "actor User\n"
+                + "actor Admin\n"
+                + "User --> (Login)\n"
+                + "User --> (Search Book)\n"
+                + "Admin --> (Manage Order)\n"
+                + "@enduml\n");
         JScrollPane useCasePlantScroll = new JScrollPane(useCasePlantUmlArea);
         useCasePlantScroll.setBorder(BorderFactory.createLineBorder(new Color(0xe2e8f0)));
         useCasePlantPanel.add(useCasePlantScroll, BorderLayout.CENTER);
@@ -548,6 +548,7 @@ public class MainFrame extends JFrame {
         label.setFont(new Font("微软雅黑", Font.PLAIN, 12));
         panel.add(label, gbc);
     }
+
     private void initClassDiagramPanel() {
         classDiagramPanel = new JPanel(new BorderLayout(10, 10));
         classDiagramPanel.setBorder(new EmptyBorder(12, 14, 14, 14));
@@ -573,7 +574,8 @@ public class MainFrame extends JFrame {
         plantUmlCodeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         plantUmlCodeArea.setBorder(new EmptyBorder(10, 12, 10, 12));
         plantUmlCodeArea.setBackground(Color.WHITE);
-        plantUmlCodeArea.setText("@startuml\nclass User {\n  +id: Long\n  +name: String\n  +getName(): String\n}\n@enduml\n");
+        plantUmlCodeArea
+                .setText("@startuml\nclass User {\n  +id: Long\n  +name: String\n  +getName(): String\n}\n@enduml\n");
         JScrollPane inputScroll = new JScrollPane(plantUmlCodeArea);
         inputScroll.setBorder(BorderFactory.createTitledBorder("PlantUML Class Diagram"));
         centerPanel.add(inputScroll);
@@ -601,8 +603,6 @@ public class MainFrame extends JFrame {
                 new EmptyBorder(6, 8, 6, 8)));
         grid.add(field);
     }
-
-   
 
     private static void addLabeledFieldCompact(JPanel grid, String label, JTextField field) {
         JLabel l = new JLabel(label);
@@ -947,9 +947,12 @@ public class MainFrame extends JFrame {
     private UseCasePlantUmlParseResult parseUseCasePlantUml(String rawText) {
         String text = rawText.replace("\r\n", "\n");
 
-        Pattern actorDeclPattern = Pattern.compile("(?im)^\\s*actor\\s+(?:\\\"([^\\\"]+)\\\"\\s+as\\s+)?(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)?.*$");
-        Pattern actorToUseCasePattern = Pattern.compile("(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)\\s*[-.o*]+>\\s*\\(([^)]+)\\)");
-        Pattern useCaseToActorPattern = Pattern.compile("\\(([^)]+)\\)\\s*[-.o*]+>\\s*(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)");
+        Pattern actorDeclPattern = Pattern.compile(
+                "(?im)^\\s*actor\\s+(?:\\\"([^\\\"]+)\\\"\\s+as\\s+)?(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)?.*$");
+        Pattern actorToUseCasePattern = Pattern
+                .compile("(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)\\s*[-.o*]+>\\s*\\(([^)]+)\\)");
+        Pattern useCaseToActorPattern = Pattern
+                .compile("\\(([^)]+)\\)\\s*[-.o*]+>\\s*(\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)");
         Pattern useCasePattern = Pattern.compile("\\(([^)]+)\\)");
 
         Set<String> declaredActors = new LinkedHashSet<>();
@@ -957,7 +960,8 @@ public class MainFrame extends JFrame {
         while (actorDeclMatcher.find()) {
             String aliasOrName = actorDeclMatcher.group(2);
             String quotedName = actorDeclMatcher.group(1);
-            String actorName = sanitizeReference(aliasOrName != null && !aliasOrName.trim().isEmpty() ? aliasOrName : quotedName);
+            String actorName = sanitizeReference(
+                    aliasOrName != null && !aliasOrName.trim().isEmpty() ? aliasOrName : quotedName);
             if (!actorName.isEmpty()) {
                 declaredActors.add(actorName);
             }
@@ -1279,8 +1283,8 @@ public class MainFrame extends JFrame {
     }
 
     private String buildDesignPagePrompt(RequirementDesignMetricsEngine.FunctionPointResult fp,
-                                         UCPResult ucp,
-                                         RequirementDesignMetricsEngine.FeaturePointResult featurePoint) {
+            UCPResult ucp,
+            RequirementDesignMetricsEngine.FeaturePointResult featurePoint) {
         StringBuilder sb = new StringBuilder();
         sb.append("请根据以下用例点与功能点度量结果，分析当前需求/设计规模与风险，并给出3条简洁的改进建议。\n");
         sb.append("UFP=").append(fp.ufp).append("\n");
@@ -1407,7 +1411,8 @@ public class MainFrame extends JFrame {
         }
 
         StringBuilder html = new StringBuilder();
-        html.append("<html><body style='font-family:Segoe UI,Microsoft YaHei UI,sans-serif;margin:10px 12px;color:#0f172a;'>");
+        html.append(
+                "<html><body style='font-family:Segoe UI,Microsoft YaHei UI,sans-serif;margin:10px 12px;color:#0f172a;'>");
         html.append("<div style='font-size:12px;color:#64748b;margin-bottom:10px;'>智能分析结果</div>");
         if (overall.length() > 0) {
             html.append(sectionHtml("总体评价", "#0369a1", "#e0f2fe", overall.toString()));
@@ -1427,7 +1432,8 @@ public class MainFrame extends JFrame {
 
     private static String sectionHtml(String title, String fg, String bg, String content) {
         return "<div style='margin:0 0 12px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;'>"
-                + "<div style='padding:8px 10px;background:" + bg + ";color:" + fg + ";font-weight:700;font-size:13px;'>"
+                + "<div style='padding:8px 10px;background:" + bg + ";color:" + fg
+                + ";font-weight:700;font-size:13px;'>"
                 + escapeHtml(title) + "</div>"
                 + "<div style='padding:10px 12px;line-height:1.65;font-size:13px;color:#1e293b;white-space:pre-wrap;'>"
                 + escapeHtml(content) + "</div>"
@@ -1501,11 +1507,11 @@ public class MainFrame extends JFrame {
         private final int complexActors;
 
         private UseCasePlantUmlParseResult(int simpleUseCases,
-                                           int averageUseCases,
-                                           int complexUseCases,
-                                           int simpleActors,
-                                           int averageActors,
-                                           int complexActors) {
+                int averageUseCases,
+                int complexUseCases,
+                int simpleActors,
+                int averageActors,
+                int complexActors) {
             this.simpleUseCases = simpleUseCases;
             this.averageUseCases = averageUseCases;
             this.complexUseCases = complexUseCases;
