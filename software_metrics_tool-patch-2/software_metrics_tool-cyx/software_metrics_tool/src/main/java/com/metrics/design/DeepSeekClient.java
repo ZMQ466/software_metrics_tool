@@ -1,0 +1,140 @@
+package com.metrics.design;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Minimal DeepSeek chat client based on OpenAI-compatible API.
+ */
+public class DeepSeekClient {
+    private static final Pattern CONTENT_PATTERN = Pattern.compile("\"content\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+    private final HttpClient httpClient;
+    private final String apiKey;
+    private final String baseUrl;
+    private final String model;
+
+    public DeepSeekClient() {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(20))
+                .build();
+        this.apiKey = readEnv("DEEPSEEK_API_KEY", System.getenv("DEEPSEEK_API_KEY"));
+        this.baseUrl = readEnv("DEEPSEEK_BASE_URL", "https://api.deepseek.com");
+        this.model = readEnv("DEEPSEEK_MODEL", "deepseek-chat");
+    }
+
+    public String analyze(String prompt) throws IOException, InterruptedException {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalStateException("Missing DEEPSEEK_API_KEY environment variable.");
+        }
+        String url = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
+        String body = "{\"model\":\"" + jsonEscape(model) + "\","
+                + "\"messages\":["
+                + "{\"role\":\"system\",\"content\":\"你是一名资深软件架构评审专家，擅长基于软件度量做工程化改进建议。\"},"
+                + "{\"role\":\"user\",\"content\":\"" + jsonEscape(prompt) + "\"}"
+                + "],"
+                + "\"temperature\":0.3}";
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .timeout(Duration.ofSeconds(90))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            String snippet = response.body();
+            if (snippet != null && snippet.length() > 600) {
+                snippet = snippet.substring(0, 600);
+            }
+            throw new IOException("DeepSeek API error " + response.statusCode() + ": " + snippet);
+        }
+        String content = extractLastContent(response.body());
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("DeepSeek API returned empty content.");
+        }
+        return content;
+    }
+
+    private static String extractLastContent(String body) {
+        Matcher m = CONTENT_PATTERN.matcher(body == null ? "" : body);
+        String last = null;
+        while (m.find()) {
+            last = unescapeJson(m.group(1));
+        }
+        return last;
+    }
+
+    private static String jsonEscape(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
+    private static String unescapeJson(String s) {
+        if (s == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' && i + 1 < s.length()) {
+                char n = s.charAt(++i);
+                switch (n) {
+                    case 'n':
+                        out.append('\n');
+                        break;
+                    case 'r':
+                        out.append('\r');
+                        break;
+                    case 't':
+                        out.append('\t');
+                        break;
+                    case '"':
+                        out.append('"');
+                        break;
+                    case '\\':
+                        out.append('\\');
+                        break;
+                    case 'u':
+                        if (i + 4 < s.length()) {
+                            String hex = s.substring(i + 1, i + 5);
+                            try {
+                                out.append((char) Integer.parseInt(hex, 16));
+                                i += 4;
+                            } catch (NumberFormatException e) {
+                                out.append("\\u").append(hex);
+                                i += 4;
+                            }
+                        } else {
+                            out.append("\\u");
+                        }
+                        break;
+                    default:
+                        out.append(n);
+                        break;
+                }
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+    private static String readEnv(String key, String defaultValue) {
+        String v = System.getenv(key);
+        return v == null || v.trim().isEmpty() ? defaultValue : v.trim();
+    }
+}
