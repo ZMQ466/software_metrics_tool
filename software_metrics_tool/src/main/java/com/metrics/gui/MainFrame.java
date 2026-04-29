@@ -141,7 +141,7 @@ public class MainFrame extends JFrame {
     private void initComponents() {
         installTabbedPaneChrome();
 
-      //  navBar = buildTopNavigation();
+        // navBar = buildTopNavigation();
         tabbedPane = new JTabbedPane();
         tabbedPane.setFont(FONT_BODY);
         tabbedPane.setBackground(APP_BG);
@@ -163,7 +163,7 @@ public class MainFrame extends JFrame {
         JPanel root = new JPanel(new BorderLayout(0, 14));
         root.setBackground(APP_BG);
         root.setBorder(new EmptyBorder(16, 16, 16, 16));
-     //   root.add(navBar, BorderLayout.NORTH);
+        // root.add(navBar, BorderLayout.NORTH);
         root.add(tabbedPane, BorderLayout.CENTER);
         add(root, BorderLayout.CENTER);
 
@@ -191,20 +191,6 @@ public class MainFrame extends JFrame {
     private JPanel buildTopNavigation() {
         JPanel hero = createCardPanel(new BorderLayout(12, 8), BORDER, PRIMARY);
         hero.setBorder(BorderFactory.createCompoundBorder(createShadowBorder(18), hero.getBorder()));
-
-        // JPanel titleBox = new JPanel();
-        // titleBox.setOpaque(false);
-        // titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
-        // JLabel title = new JLabel("软件度量工具");
-        // title.setFont(FONT_TITLE_LG);
-        // title.setForeground(TEXT);
-        // JLabel subtitle = new JLabel("Material Design 3 · 浅蓝配色 · 圆角卡片导航");
-        // subtitle.setFont(FONT_BODY_LG);
-        // subtitle.setForeground(MUTED);
-        // titleBox.add(title);
-        // titleBox.add(Box.createVerticalStrut(3));
-        // titleBox.add(subtitle);
-        // hero.add(titleBox, BorderLayout.WEST);
 
         JPanel navRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         navRow.setOpaque(false);
@@ -540,21 +526,21 @@ public class MainFrame extends JFrame {
                         new EmptyBorder(16, 18, 16, 18))));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(6, 8, 6, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0 / 3.0;
 
         int row = 0;
 
-        JLabel designTitle = new JLabel("用例点与功能点度量");
-        designTitle.setFont(FONT_TITLE_LG);
-        designTitle.setForeground(TEXT);
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 3;
-        inputPanel.add(designTitle, gbc);
-        gbc.gridwidth = 1;
-        row++;
+        // JLabel designTitle = new JLabel("用例点与功能点度量");
+        // designTitle.setFont(FONT_TITLE_LG);
+        // designTitle.setForeground(TEXT);
+        // gbc.gridx = 0;
+        // gbc.gridy = row;
+        // gbc.gridwidth = 3;
+        // inputPanel.add(designTitle, gbc);
+        // gbc.gridwidth = 1;
+        // row++;
 
         // ========== 第1行：EI, EO, EQ ==========
         // 列0: EI
@@ -629,6 +615,7 @@ public class MainFrame extends JFrame {
         row++;
 
         // ========== 第5行：特征点权重 ==========
+
         gbc.gridx = 0;
         gbc.gridy = row;
         algorithmicWeightField = new JTextField("1.00");
@@ -671,7 +658,7 @@ public class MainFrame extends JFrame {
         gbc.gridwidth = 1;
         row++;
 
-        // ========== 第8行：PlantUML 用例图输入（跨6列） ==========
+        // ========== 第8行：PlantUML 用例图输入（左：文本，右：垂直按钮） ==========
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 6;
@@ -685,7 +672,8 @@ public class MainFrame extends JFrame {
         useCasePlantLabel.setFont(FONT_BODY_LG);
         useCasePlantPanel.add(useCasePlantLabel, BorderLayout.NORTH);
 
-        useCasePlantUmlArea = new JTextArea(5, 20);
+        // 左侧：大文本输入区
+        useCasePlantUmlArea = new JTextArea(7, 40);
         styleTextArea(useCasePlantUmlArea, true);
         useCasePlantUmlArea.setLineWrap(true);
         useCasePlantUmlArea.setWrapStyleWord(true);
@@ -699,18 +687,72 @@ public class MainFrame extends JFrame {
                 + "@enduml\n");
         JScrollPane useCasePlantScroll = new JScrollPane(useCasePlantUmlArea);
         useCasePlantScroll.setBorder(BorderFactory.createLineBorder(BORDER));
-        useCasePlantPanel.add(useCasePlantScroll, BorderLayout.CENTER);
+
+        // 右侧：垂直按钮区（4 个按钮）
+        JPanel rightButtons = new JPanel();
+        rightButtons.setOpaque(false);
+        rightButtons.setLayout(new BoxLayout(rightButtons, BoxLayout.Y_AXIS));
 
         uploadUseCasePlantUmlButton = styledButton("上传 PlantUML 代码", false);
         uploadUseCasePlantUmlButton.addActionListener(e -> performUploadUseCasePlantUml());
-        parseUseCasePlantUmlButton = styledButton("解析PlantUML用例图", false);
+        parseUseCasePlantUmlButton = styledButton("解析 PlantUML 代码", false);
         parseUseCasePlantUmlButton.addActionListener(e -> performParseUseCasePlantUml());
-        JPanel parseButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        parseButtonPanel.setOpaque(false);
-        parseButtonPanel.add(uploadUseCasePlantUmlButton);
-        parseButtonPanel.add(Box.createHorizontalStrut(8));
-        parseButtonPanel.add(parseUseCasePlantUmlButton);
-        useCasePlantPanel.add(parseButtonPanel, BorderLayout.SOUTH);
+
+        // 统一右侧按钮宽度并设置为透明背景、水平居中
+        Dimension rightButtonSize = new Dimension(180, 44);
+        uploadUseCasePlantUmlButton.setPreferredSize(rightButtonSize);
+        uploadUseCasePlantUmlButton.setMaximumSize(rightButtonSize);
+        uploadUseCasePlantUmlButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        uploadUseCasePlantUmlButton.setOpaque(false);
+        uploadUseCasePlantUmlButton.setContentAreaFilled(false);
+
+        parseUseCasePlantUmlButton.setPreferredSize(rightButtonSize);
+        parseUseCasePlantUmlButton.setMaximumSize(rightButtonSize);
+        parseUseCasePlantUmlButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        parseUseCasePlantUmlButton.setOpaque(false);
+        parseUseCasePlantUmlButton.setContentAreaFilled(false);
+
+        JButton fillExampleButton = styledButton("填充示例", false);
+        fillExampleButton.addActionListener(e -> {
+            useCasePlantUmlArea.setText(
+                    "@startuml\nleft to right direction\nactor User\nactor Admin\nUser --> (Login)\nUser --> (Search Book)\nAdmin --> (Manage Order)\n@enduml\n");
+            useCasePlantUmlArea.setCaretPosition(0);
+        });
+
+        JButton clearButton = styledButton("清空", false);
+        clearButton.addActionListener(e -> useCasePlantUmlArea.setText(""));
+
+        // 填充与清空按钮使用相同尺寸与透明背景
+        fillExampleButton.setPreferredSize(rightButtonSize);
+        fillExampleButton.setMaximumSize(rightButtonSize);
+        fillExampleButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        fillExampleButton.setOpaque(false);
+        fillExampleButton.setContentAreaFilled(false);
+
+        clearButton.setPreferredSize(rightButtonSize);
+        clearButton.setMaximumSize(rightButtonSize);
+        clearButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        clearButton.setOpaque(false);
+        clearButton.setContentAreaFilled(false);
+
+        // 将按钮垂直排列并居中
+        rightButtons.add(Box.createVerticalGlue());
+        rightButtons.add(uploadUseCasePlantUmlButton);
+        rightButtons.add(Box.createVerticalStrut(10));
+        rightButtons.add(parseUseCasePlantUmlButton);
+        rightButtons.add(Box.createVerticalStrut(10));
+        rightButtons.add(fillExampleButton);
+        rightButtons.add(Box.createVerticalStrut(10));
+        rightButtons.add(clearButton);
+        rightButtons.add(Box.createVerticalGlue());
+
+        // 使用分割面板使左侧文本区域和右侧按钮区比例合理
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, useCasePlantScroll, rightButtons);
+        split.setResizeWeight(0.78);
+        split.setDividerSize(6);
+        split.setBorder(null);
+
+        useCasePlantPanel.add(split, BorderLayout.CENTER);
 
         inputPanel.add(useCasePlantPanel, gbc);
         gbc.gridwidth = 1;
@@ -746,6 +788,7 @@ public class MainFrame extends JFrame {
                 createShadowBorder(16),
                 BorderFactory.createLineBorder(BORDER)));
         designMetricsPanel.add(scrollPane, BorderLayout.CENTER);
+
     }
 
     // 辅助方法：只添加标签，不添加文本框
@@ -767,7 +810,7 @@ public class MainFrame extends JFrame {
         JLabel label = new JLabel(labelText);
         label.setFont(FONT_BODY);
         label.setForeground(TEXT);
-        label.setPreferredSize(new Dimension(60, 26));
+        label.setPreferredSize(new Dimension(80, 22));
         cellPanel.add(label, BorderLayout.WEST);
 
         styleTextField(field);
@@ -1528,21 +1571,21 @@ public class MainFrame extends JFrame {
                     .calculateFeaturePoint(fpResult, featurePointInput);
 
             designResultArea.append("=== 功能点 FP ===\n");
-            designResultArea.append("UFP=" + fpResult.ufp + "\n");
-            designResultArea.append("VAF=" + formatDouble(fpResult.vaf) + "\n");
-            designResultArea.append("FP=" + formatDouble(fpResult.adjustedFp) + "\n\n");
+            designResultArea.append("UFP未调整功能点=" + fpResult.ufp + "\n");
+            designResultArea.append("VAF调整系数=" + formatDouble(fpResult.vaf) + "\n");
+            designResultArea.append("FP功能点=" + formatDouble(fpResult.adjustedFp) + "\n\n");
 
             designResultArea.append("=== 用例点 UCP ===\n");
-            designResultArea.append("UAW=" + ucpResult.getUaw() + "\n");
-            designResultArea.append("UUCW=" + ucpResult.getUucw() + "\n");
-            designResultArea.append("UUCP=" + ucpResult.getUucp() + "\n");
-            designResultArea.append("TCF=" + formatDouble(ucpResult.getTcf()) + "\n");
-            designResultArea.append("ECF=" + formatDouble(ucpResult.getEcf()) + "\n");
-            designResultArea.append("UCP=" + formatDouble(ucpResult.getUcp()) + "\n\n");
+            designResultArea.append("UAW未调整参与者权重=" + ucpResult.getUaw() + "\n");
+            designResultArea.append("UUCW未调整用例权重=" + ucpResult.getUucw() + "\n");
+            designResultArea.append("UUCP未调整用例点=" + ucpResult.getUucp() + "\n");
+            designResultArea.append("TCF技术复杂度因子=" + formatDouble(ucpResult.getTcf()) + "\n");
+            designResultArea.append("ECF环境复杂度因子=" + formatDouble(ucpResult.getEcf()) + "\n");
+            designResultArea.append("UCP用例点=" + formatDouble(ucpResult.getUcp()) + "\n\n");
 
             designResultArea.append("=== 特征点 Feature Point ===\n");
-            designResultArea.append("AlgorithmicWeight=" + formatDouble(featurePointResult.algorithmicWeight) + "\n");
-            designResultArea.append("FeaturePoint=" + formatDouble(featurePointResult.featurePoint) + "\n");
+            designResultArea.append("AlgorithmicWeight算法权重=" + formatDouble(featurePointResult.algorithmicWeight) + "\n");
+            designResultArea.append("FeaturePoint特征点=" + formatDouble(featurePointResult.featurePoint) + "\n");
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "输入错误", JOptionPane.ERROR_MESSAGE);
         }
