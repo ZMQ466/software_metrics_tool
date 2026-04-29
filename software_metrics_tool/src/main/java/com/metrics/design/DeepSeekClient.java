@@ -5,7 +5,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,6 +63,73 @@ public class DeepSeekClient {
             throw new IOException("DeepSeek API returned empty content.");
         }
         return content;
+    }
+
+    public String analyzeClassDiagramImage(Path imagePath) throws IOException, InterruptedException {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalStateException("Missing DEEPSEEK_API_KEY environment variable.");
+        }
+        if (imagePath == null) {
+            throw new IllegalArgumentException("Image path is null.");
+        }
+        byte[] bytes = Files.readAllBytes(imagePath);
+        if (bytes.length == 0) {
+            throw new IllegalArgumentException("Image file is empty.");
+        }
+        String base64 = Base64.getEncoder().encodeToString(bytes);
+        String dataUrl = "data:image/png;base64," + base64;
+        String visionModel = readEnv("DEEPSEEK_VISION_MODEL", model);
+
+        String url = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
+        // Some DeepSeek-compatible gateways expect "messages=plain text + top-level images".
+        String bodyImagesTopLevel = "{\"model\":\"" + jsonEscape(visionModel) + "\","
+                + "\"messages\":["
+                + "{\"role\":\"system\",\"content\":\"你是UML建模助手。请把输入图片中的类图解析为可运行的PlantUML类图代码。\"},"
+                + "{\"role\":\"user\",\"content\":\"请将这张类图图片转换成PlantUML类图代码。仅输出代码，不要解释。\"}"
+                + "],"
+                + "\"images\":[\"" + dataUrl + "\"],"
+                + "\"temperature\":0.5}";
+
+        // OpenAI-style multimodal format (fallback).
+        String bodyOpenAiStyle = "{\"model\":\"" + jsonEscape(visionModel) + "\","
+                + "\"messages\":["
+                + "{\"role\":\"system\",\"content\":\"你是UML建模助手。请把输入图片中的类图解析为可运行的PlantUML类图代码。\"},"
+                + "{\"role\":\"user\",\"content\":["
+                + "{\"type\":\"text\",\"text\":\"请将这张类图图片转换成PlantUML类图代码。仅输出代码，不要解释。\"},"
+                + "{\"type\":\"image_url\",\"image_url\":{\"url\":\"" + dataUrl + "\"}}"
+                + "]}"
+                + "],"
+                + "\"temperature\":0.5}";
+
+        HttpResponse<String> response = sendJson(url, bodyImagesTopLevel, 120);
+        if (response.statusCode() == 400 && response.body() != null
+                && (response.body().contains("unknown variant `image_url`")
+                || response.body().contains("expected `text`")
+                || response.body().contains("invalid_request_error"))) {
+            response = sendJson(url, bodyOpenAiStyle, 120);
+        }
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            String snippet = response.body();
+            if (snippet != null && snippet.length() > 600) {
+                snippet = snippet.substring(0, 600);
+            }
+            throw new IOException("DeepSeek API error " + response.statusCode() + ": " + snippet);
+        }
+        String content = extractLastContent(response.body());
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("DeepSeek API returned empty content.");
+        }
+        return content;
+    }
+
+    private HttpResponse<String> sendJson(String url, String body, int timeoutSeconds) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private static String extractLastContent(String body) {

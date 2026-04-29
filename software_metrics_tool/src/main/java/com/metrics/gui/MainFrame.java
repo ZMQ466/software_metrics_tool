@@ -111,6 +111,7 @@ public class MainFrame extends JFrame {
 
     private JPanel classDiagramPanel;
     private JButton uploadPlantUmlButton;
+    private JButton uploadClassDiagramImageButton;
     private JButton calculateClassDiagramButton;
     private JButton aiAnalyzeClassDiagramButton;
     private JTextArea plantUmlCodeArea;
@@ -118,6 +119,7 @@ public class MainFrame extends JFrame {
 
     private JPanel controlFlowPanel;
     private JButton uploadControlFlowPlantUmlButton;
+    private JButton uploadControlFlowImageButton;
     private JButton calculateControlFlowButton;
     private JButton aiAnalyzeControlFlowButton;
     private JTextArea controlFlowPlantUmlArea;
@@ -783,11 +785,14 @@ public class MainFrame extends JFrame {
         actionPanel.setOpaque(false);
         uploadPlantUmlButton = styledButton("上传 PlantUML 代码", false);
         uploadPlantUmlButton.addActionListener(e -> performUploadPlantUml());
+        uploadClassDiagramImageButton = styledButton("上传类图图片(.png)识别", false);
+        uploadClassDiagramImageButton.addActionListener(e -> performUploadClassDiagramImage());
         calculateClassDiagramButton = floatingActionButton("解析 + CK/LK 度量分析", PRIMARY, ON_PRIMARY);
         calculateClassDiagramButton.addActionListener(e -> performClassDiagramCalculation());
         aiAnalyzeClassDiagramButton = styledButton("智能分析", false);
         aiAnalyzeClassDiagramButton.addActionListener(e -> performAiClassDiagramAnalysis());
         actionPanel.add(uploadPlantUmlButton);
+        actionPanel.add(uploadClassDiagramImageButton);
         actionPanel.add(calculateClassDiagramButton);
         actionPanel.add(aiAnalyzeClassDiagramButton);
         JPanel headerCard = createMaterialCard(new BorderLayout());
@@ -835,11 +840,14 @@ public class MainFrame extends JFrame {
         actionPanel.setOpaque(false);
         uploadControlFlowPlantUmlButton = styledButton("上传 PlantUML", false);
         uploadControlFlowPlantUmlButton.addActionListener(e -> performUploadControlFlowPlantUml());
+        uploadControlFlowImageButton = styledButton("上传流程图图片(.png)识别", false);
+        uploadControlFlowImageButton.addActionListener(e -> performUploadControlFlowImage());
         calculateControlFlowButton = floatingActionButton("解析 + 控制流度量分析", PRIMARY, ON_PRIMARY);
         calculateControlFlowButton.addActionListener(e -> performControlFlowCalculation());
         aiAnalyzeControlFlowButton = styledButton("智能分析", false);
         aiAnalyzeControlFlowButton.addActionListener(e -> performAiControlFlowAnalysis());
         actionPanel.add(uploadControlFlowPlantUmlButton);
+        actionPanel.add(uploadControlFlowImageButton);
         actionPanel.add(calculateControlFlowButton);
         actionPanel.add(aiAnalyzeControlFlowButton);
         JPanel headerCard = createMaterialCard(new BorderLayout());
@@ -1596,6 +1604,48 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void performUploadClassDiagramImage() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("选择类图 PNG 图片");
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PNG Image", "png"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path imagePath = chooser.getSelectedFile().toPath();
+
+        uploadClassDiagramImageButton.setEnabled(false);
+        String oldText = uploadClassDiagramImageButton.getText();
+        uploadClassDiagramImageButton.setText("识别中...");
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return deepSeekClient.analyzeClassDiagramImage(imagePath);
+            }
+
+            @Override
+            protected void done() {
+                uploadClassDiagramImageButton.setEnabled(true);
+                uploadClassDiagramImageButton.setText(oldText);
+                try {
+                    String reply = get();
+                    String plantUml = extractPlantUmlCode(reply);
+                    plantUmlCodeArea.setText(plantUml);
+                    plantUmlCodeArea.setCaretPosition(0);
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "类图图片识别完成，已填充 PlantUML 代码。",
+                            "识别成功",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "图片识别失败: " + ex.getMessage(),
+                            "识别失败",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        worker.execute();
+    }
+
     private void performUploadControlFlowPlantUml() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Select PlantUML file");
@@ -1614,6 +1664,48 @@ public class MainFrame extends JFrame {
                     "Read Error",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void performUploadControlFlowImage() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("选择流程图 PNG 图片");
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PNG Image", "png"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path imagePath = chooser.getSelectedFile().toPath();
+
+        uploadControlFlowImageButton.setEnabled(false);
+        String oldText = uploadControlFlowImageButton.getText();
+        uploadControlFlowImageButton.setText("识别中...");
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return deepSeekClient.analyzeClassDiagramImage(imagePath);
+            }
+
+            @Override
+            protected void done() {
+                uploadControlFlowImageButton.setEnabled(true);
+                uploadControlFlowImageButton.setText(oldText);
+                try {
+                    String reply = get();
+                    String plantUml = extractPlantUmlCode(reply);
+                    controlFlowPlantUmlArea.setText(plantUml);
+                    controlFlowPlantUmlArea.setCaretPosition(0);
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "流程图图片识别完成，已填充 PlantUML 代码。",
+                            "识别成功",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "图片识别失败: " + ex.getMessage(),
+                            "识别失败",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        worker.execute();
     }
 
     private void performUploadUseCasePlantUml() {
@@ -2103,6 +2195,27 @@ public class MainFrame extends JFrame {
             }
         }
         return false;
+    }
+
+    private static String extractPlantUmlCode(String rawReply) {
+        String text = rawReply == null ? "" : rawReply.trim();
+        if (text.isEmpty()) {
+            return "";
+        }
+        int fenceStart = text.indexOf("```");
+        if (fenceStart >= 0) {
+            int firstLineEnd = text.indexOf('\n', fenceStart);
+            if (firstLineEnd > fenceStart) {
+                int fenceEnd = text.indexOf("```", firstLineEnd + 1);
+                if (fenceEnd > firstLineEnd) {
+                    String fenced = text.substring(firstLineEnd + 1, fenceEnd).trim();
+                    if (!fenced.isEmpty()) {
+                        return fenced;
+                    }
+                }
+            }
+        }
+        return text;
     }
 
     private double parseDouble(String value) {
