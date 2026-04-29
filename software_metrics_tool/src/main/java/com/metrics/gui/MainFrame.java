@@ -1892,8 +1892,9 @@ public class MainFrame extends JFrame {
         sb.append("CBO=").append(metricValue(m, "CK_CBO")).append("\n");
         sb.append("RFC=").append(metricValue(m, "CK_RFC")).append("\n");
         sb.append("LCOM=").append(metricValue(m, "CK_LCOM")).append("\n");
-        sb.append("LCOM4=").append(metricValue(m, "LK_LCOM_NORM")).append("\n");
-        sb.append("LCOM_HS=").append(metricValue(m, "LK_COHESION")).append("\n\n");
+        sb.append("NOA=").append(metricValue(m, "LK_NOA")).append("\n");
+        sb.append("NOO=").append(metricValue(m, "LK_NOO")).append("\n");
+        sb.append("CS=").append(metricValue(m, "LK_CS")).append("\n\n");
         appendCommonAiRequirements(sb);
         return sb.toString();
     }
@@ -1942,8 +1943,9 @@ public class MainFrame extends JFrame {
         double sumCbo = 0.0;
         double sumRfc = 0.0;
         double sumLcom = 0.0;
-        double sumLkNorm = 0.0;
-        double sumLkHs = 0.0;
+        double sumNoa = 0.0;
+        double sumNoo = 0.0;
+        double sumCs = 0.0;
         for (ClassInfo c : classes) {
             Map<String, Double> m = c.getMetrics();
             sumWmc += m.getOrDefault("CK_WMC", 0.0);
@@ -1952,8 +1954,9 @@ public class MainFrame extends JFrame {
             sumCbo += m.getOrDefault("CK_CBO", 0.0);
             sumRfc += m.getOrDefault("CK_RFC", 0.0);
             sumLcom += m.getOrDefault("CK_LCOM", 0.0);
-            sumLkNorm += m.getOrDefault("LK_LCOM_NORM", 0.0);
-            sumLkHs += m.getOrDefault("LK_COHESION", 0.0);
+            sumNoa += m.getOrDefault("LK_NOA", 0.0);
+            sumNoo += m.getOrDefault("LK_NOO", 0.0);
+            sumCs += m.getOrDefault("LK_CS", 0.0);
         }
         int n = classes.size();
         StringBuilder sb = new StringBuilder();
@@ -1965,8 +1968,9 @@ public class MainFrame extends JFrame {
         sb.append("CBO(avg)=").append(formatDouble(sumCbo / n)).append("\n");
         sb.append("RFC(avg)=").append(formatDouble(sumRfc / n)).append("\n");
         sb.append("LCOM(avg)=").append(formatDouble(sumLcom / n)).append("\n");
-        sb.append("LCOM4(avg)=").append(formatDouble(sumLkNorm / n)).append("\n");
-        sb.append("LCOM_HS(avg)=").append(formatDouble(sumLkHs / n)).append("\n\n");
+        sb.append("NOA(avg)=").append(formatDouble(sumNoa / n)).append("\n");
+        sb.append("NOO(avg)=").append(formatDouble(sumNoo / n)).append("\n");
+        sb.append("CS(avg)=").append(formatDouble(sumCs / n)).append("\n\n");
         appendCommonAiRequirements(sb);
         return sb.toString();
     }

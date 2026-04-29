@@ -44,8 +44,6 @@ public class CKLkMetricsCalculator implements MetricCalculator {
 
         LcomResult lcom = calculateLcom(methods);
         classInfo.addMetric("CK_LCOM", lcom.lcom);
-        classInfo.addMetric("LK_LCOM_NORM", lcom.lcomNorm);
-        classInfo.addMetric("LK_COHESION", lcom.cohesion);
     }
 
     @Override
@@ -76,7 +74,40 @@ public class CKLkMetricsCalculator implements MetricCalculator {
             int noc = children.getOrDefault(q, new ArrayList<>()).size();
             c.addMetric("CK_DIT", dit);
             c.addMetric("CK_NOC", noc);
+            applyLkNoaNooCs(c, superRawByQualified, all);
         }
+    }
+
+    private static void applyLkNoaNooCs(ClassInfo current,
+                                        Map<String, String> superRawByQualified,
+                                        List<ClassInfo> all) {
+        String superRaw = superRawByQualified.get(current.getQualifiedName());
+        String resolvedSuper = resolveToProjectFqn(normalizeTypeRef(superRaw), all);
+
+        Set<String> superMethodNames = new HashSet<>();
+        if (resolvedSuper != null) {
+            for (ClassInfo c : all) {
+                if (resolvedSuper.equals(c.getQualifiedName())) {
+                    for (MethodInfo m : c.getMethods()) {
+                        superMethodNames.add(m.getMethodName());
+                    }
+                    break;
+                }
+            }
+        }
+
+        int noo = 0;
+        for (MethodInfo m : current.getMethods()) {
+            if (superMethodNames.contains(m.getMethodName())) {
+                noo++;
+            }
+        }
+        int noa = Math.max(current.getMethods().size() - noo, 0);
+        int cs = current.getFields().size() + current.getMethods().size();
+
+        current.addMetric("LK_NOA", noa);
+        current.addMetric("LK_NOO", noo);
+        current.addMetric("LK_CS", cs);
     }
 
     /**
